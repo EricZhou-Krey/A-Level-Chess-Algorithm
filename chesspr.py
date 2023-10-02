@@ -25,12 +25,10 @@ class PyGameWindow:
                     self.running = False
             self.whileDrawing()
             pygame.display.flip()
-        pygame.quit()
-        
+        pygame.quit()       
 class Interface(PyGameWindow):
     def __init__(self, window_size, caption):
-        super().__init__(window_size, caption)
-        
+        super().__init__(window_size, caption)     
 class ChessBoard(Interface):
     def __init__(self, window_size, caption, tile_size):
         super().__init__(window_size, caption)
@@ -97,6 +95,12 @@ class ChessBoard(Interface):
                     case "kw":
                         self.board[row][column] = (self.board[row][column], self.peiceImage["WKing"])
     
+    def promote(self, coordinate):
+        (coordiantey, coordinatex) = coordinate
+        (notation, image) = self.board[coordiantey][coordinatex]
+        notation = str(input("Please enter what you want to promote to with the piece first and the colour next in notation: "))
+        self.board[coordiantey][coordinatex] = (notation, image)
+        
     def checkKingSafe(self, coordinate, otherColour):
         (coordinatey, coordinatex) = coordinate
         tileToSouthEdge = abs(coordinatey - len(self.board[0]))
@@ -115,6 +119,12 @@ class ChessBoard(Interface):
                 elif notation == "_" or (not(otherColour in notation) and "k" in notation):
                     pass
                 else: break
+        for x in range(-2, 3):
+            for y in range(-2, 3):
+                if -1 < coordinatey+y < 8 and -1 < coordinatex+x < 8 and abs(x)+abs(y) == 3:
+                    (notation, image) = self.board[coordinatey+y][coordinatex+x]
+                    if otherColour in notation and "n" in notation:
+                        return False
         return True
     
     def updateKingTile(self, position, ownColour):
@@ -179,7 +189,7 @@ class ChessBoard(Interface):
             match notation:
                 case str(type) if "p" in type:
                     distance = 1
-                    if (notation == "pw"):
+                    if (notation == "pw") and peiceCoordinatey > moveCoordinatey:
                         if (peiceCoordinatey == 6):
                             distance = 2
                         if ((moveCoordinatex == peiceCoordinatex) and (moveCoordinatey + distance >= peiceCoordinatey > moveCoordinatey) and not onPeice):
@@ -194,7 +204,7 @@ class ChessBoard(Interface):
                                 return True
                             elif onPeice:
                                 return True
-                    elif (notation == "pd"):
+                    elif (notation == "pd") and peiceCoordinatey < moveCoordinatey:
                         if (peiceCoordinatey == 1):
                             distance = 2
                         if ((moveCoordinatex == peiceCoordinatex) and (moveCoordinatey - distance <= peiceCoordinatey < moveCoordinatey) and not onPeice):
@@ -299,6 +309,8 @@ class ChessBoard(Interface):
                                     self.updateKingTile((mouseCoordinatey, mouseCoordinatex), "w")
                                 else:
                                     self.updateKingTile((mouseCoordinatey, mouseCoordinatex), "d")
+                            if "pw" == notation and mouseCoordinatey == 0 or ("pd" == notation and mouseCoordinatey == 7):
+                                self.promote((mouseCoordinatey, mouseCoordinatex))
                             if (peiceCoordinatey, peiceCoordinatex) in self.castlePeiceTile:
                                 self.castlePeiceTile.remove((peiceCoordinatey, peiceCoordinatex))
                             self.previousMoveTo = (mouseCoordinatey, mouseCoordinatex)
@@ -319,9 +331,3 @@ class ChessBoard(Interface):
                 if self.board[row][column] != "__":
                     (notation, image) = self.board[row][column]
                     window.blit(image, (column * self.columnsize, row * self.rowsize))
-                
-def main():
-    main = ChessBoard((800,800), "Chess", (100,100))
-    main.run()
-if __name__ == "__main__":
-    main()
