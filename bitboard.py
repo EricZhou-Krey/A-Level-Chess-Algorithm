@@ -86,7 +86,7 @@ class BitBoard:
                     self.piece_index_board["King"].append(index)
                 case "Q":
                     self.piece_index_board["Queen"].append(index)
-    def get_knight_bitboard(self, board):
+    def get_knight_bitboard(self, board, similar=0):
         fileA = self.file_edge_bitboard["A"]
         fileB = self.file_edge_bitboard["B"]
         fileG = self.file_edge_bitboard["G"]
@@ -95,44 +95,44 @@ class BitBoard:
         rankTwo = self.file_edge_bitboard["2"]
         rankSeven = self.file_edge_bitboard["7"]
         rankEight = self.file_edge_bitboard["8"]
-        move = (board & ~(fileH|rankSeven|rankEight)) << 17 # NNE
-        move |= (board & ~(fileA|rankSeven|rankEight)) << 15 # NNW
-        move |= (board & ~(fileH|fileG|rankEight)) << 10 # NEE
-        move |= (board & ~(fileA|fileB|rankEight)) << 6 # NWW
-        move |= (board & ~(fileA|rankTwo|rankOne)) >> 17 # SSW
-        move |= (board & ~(fileH|rankTwo|rankOne)) >> 15 # SSE
-        move |= (board & ~(fileA|fileB|rankOne)) >> 10 # SWW
-        move |= (board & ~(fileH|fileG|rankOne)) >> 6 # SEE
+        move = ((board & ~(fileH|rankSeven|rankEight)) << 17) & ~(similar) # NNE
+        move |= ((board & ~(fileA|rankSeven|rankEight)) << 15) & ~(similar) # NNW
+        move |= ((board & ~(fileH|fileG|rankEight)) << 10) & ~(similar) # NEE
+        move |= ((board & ~(fileA|fileB|rankEight)) << 6) & ~(similar) # NWW
+        move |= ((board & ~(fileA|rankTwo|rankOne)) >> 17) & ~(similar) # SSW
+        move |= ((board & ~(fileH|rankTwo|rankOne)) >> 15) & ~(similar) # SSE
+        move |= ((board & ~(fileA|fileB|rankOne)) >> 10) & ~(similar) # SWW
+        move |= ((board & ~(fileH|fileG|rankOne)) >> 6) & ~(similar) # SEE
         return move
-    def get_king_bitboard(self, board):
+    def get_king_bitboard(self, board, similar=0):
         fileA = self.file_edge_bitboard["A"]
         fileH = self.file_edge_bitboard["H"]
         rankOne = self.file_edge_bitboard["1"]
         rankEight = self.file_edge_bitboard["8"]
-        move = (board & ~(fileH)) << 1 #E
-        move |= (board & ~(fileA|rankEight)) << 7 #NW
-        move |= (board & ~(rankEight)) << 8 #N
-        move |= (board & ~(fileH|rankEight)) << 9 #NE
-        move |= (board & ~(fileA)) >> 1 #W
-        move |= (board & ~(fileH|rankOne)) >> 7 #SE
-        move |= (board & ~(rankOne)) >> 8 #S
-        move |= (board & ~(fileA|rankOne)) >> 9 #SW
+        move = ((board & ~(fileH)) << 1) & ~(similar) #E
+        move |= ((board & ~(fileA|rankEight)) << 7) & ~(similar) #NW
+        move |= ((board & ~(rankEight)) << 8) & ~(similar) #N
+        move |= ((board & ~(fileH|rankEight)) << 9) & ~(similar) #NE
+        move |= ((board & ~(fileA)) >> 1) & ~(similar) #W
+        move |= ((board & ~(fileH|rankOne)) >> 7) & ~(similar) #SE
+        move |= ((board & ~(rankOne)) >> 8) & ~(similar) #S
+        move |= ((board & ~(fileA|rankOne)) >> 9) & ~(similar) #SW
         return move
-    def get_pawn_bitboard(self, board, isWhite=True):
+    def get_pawn_bitboard(self, board, isWhite=True, opposing=0, similar=0):
         fileA = self.file_edge_bitboard["A"]
         fileH = self.file_edge_bitboard["H"]
         rankTwo = self.file_edge_bitboard["2"]
         rankSeven = self.file_edge_bitboard["7"]
         if isWhite:
-            move = board << 8 #N
-            move |= (board & ~(rankSeven)) << 16 #NN
-            move |= (board & ~(fileA)) << 7 #NW
-            move |= (board & ~(fileH)) << 9 #NE
+            move = (board << 8) & ~(similar) #N
+            move |= ((board & ~(rankSeven)) << 16) & ~(similar) #NN
+            move |= ((board & ~(fileA)) << 7) & opposing #NW
+            move |= ((board & ~(fileH)) << 9) & opposing #NE
         else:
-            move = board >> 8 #S
-            move |= (board & ~(rankTwo)) >> 16 #SS
-            move |= (board & ~(fileA)) >> 7 #SW
-            move |= (board & ~(fileH)) >> 9 #SE
+            move = (board >> 8) & ~(similar) #S
+            move |= ((board & ~(rankTwo)) >> 16) & ~(similar) #SS
+            move |= ((board & ~(fileH)) >> 7) & opposing #SE
+            move |= ((board & ~(fileA)) >> 9) & opposing #SW
         return move
     def get_bishop_bitboard(self, board, opposing=0, similar=0):
         fileWEdge = self.file_edge_bitboard["A"]
@@ -206,11 +206,11 @@ class BitBoard:
     def get_move(self, piece, p_index, opposing=0, similar=0):
         match piece.lower():
             case "pawn":
-                return self.get_pawn_bitboard(self.piece_bitboard[piece][p_index], not(piece[0].isupper()))
+                return self.get_pawn_bitboard(self.piece_bitboard[piece][p_index], not(piece[0].isupper()), opposing, similar)
             case "king":
-                return self.get_king_bitboard(self.piece_bitboard[piece][p_index])
+                return self.get_king_bitboard(self.piece_bitboard[piece][p_index], similar)
             case "knight":
-                return self.get_knight_bitboard(self.piece_bitboard[piece][p_index])
+                return self.get_knight_bitboard(self.piece_bitboard[piece][p_index], similar)
             case "bishop":
                 return self.get_bishop_bitboard(self.piece_bitboard[piece][p_index], opposing, similar)
             case "rook":
@@ -224,7 +224,6 @@ class BitBoard:
         new = str()
         for x in range(1,9):
             for y in range(1,9):
-                print()
                 new += old[(8-x)*8+(8-y)]
         return new
     def output_bitboard_formatted(self, bitboard):
@@ -238,10 +237,13 @@ class BitBoard:
             print(file[y], end=" ")
         print("")
     def get_move_dict(self, white=0, dark=0):
+        key_to_index = {}
         move_dictionary = {}
         for key in self.piece_bitboard.keys():
+            key_to_index[key] = []
             for p_index, position_board in enumerate(self.piece_bitboard[key]):
                 index = int(math.log2(position_board))
+                key_to_index[key].append(index)
                 move_dictionary[index] = []
                 if key[0].isupper():
                     move_board = self.correct_format(self.get_move(key, p_index, white, dark))
@@ -250,7 +252,7 @@ class BitBoard:
                 for move_index, bit in enumerate(move_board):
                     if int(bit) == 1:
                         move_dictionary[index].append(move_index)
-        return move_dictionary
+        return move_dictionary, key_to_index
     def get_piece_board(self):
         pw_board = 0
         pd_board = 0
@@ -263,17 +265,21 @@ class BitBoard:
                     pw_board |= self.piece_bitboard[key][p_index]
         return pw_board, pd_board
     def get_move_board(self, white=0, dark=0):
-        move_dict = self.get_move_dict(white, dark)
-        move = 0
-        for key in move_dict.keys():
-            for index_move in move_dict[key]:
-                index_move = 2**index_move
-                move |= index_move
-        return move
+        move_dict, key_to_index = self.get_move_dict(white, dark)
+        w_move = 0
+        d_move = 0
+        for name_key in key_to_index.keys():
+            for origin in key_to_index[name_key]:
+                for pos_index in move_dict[origin]:
+                    index = 2**pos_index
+                    if name_key[0].isupper():
+                        d_move |= index
+                    else:
+                        w_move |= index
+        return w_move, d_move
+    
 if __name__ == "__main__":
     board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
     bitBoard = BitBoard(board)
-    print(bitBoard.get_move_board)
     white, dark = bitBoard.get_piece_board()
-    bitBoard.output_bitboard_formatted(white)
-    bitBoard.output_bitboard_formatted(bitBoard.get_move_board(white))
+    bitBoard.output_bitboard_formatted(bitBoard.get_move_board(white, dark)[1])

@@ -1,0 +1,70 @@
+<mxfile host="app.diagrams.net" modified="2023-10-03T09:52:49.008Z" agent="Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36" etag="ZS8GnDLBK0eJ4HVBXor3" version="22.0.0" type="device">
+  <diagram name="Page-1" id="n9ouSHA7mTECKZRWbvBa">
+    <mxGraphModel dx="831" dy="525" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-1" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="140" y="30" width="530" height="390" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-2" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="140" y="80" width="530" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-3" value="&lt;font style=&quot;font-size: 72px;&quot;&gt;Chess Board Screen&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="350" y="80" width="320" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-4" value="Home" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="140" y="30" width="60" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-5" value="Player vs Player" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="200" y="30" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-6" value="Player vs Computer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="300" y="30" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-10" value="Input Board" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="440" y="30" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-11" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="140" y="80" width="210" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-12" value="" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="150" y="90" width="190" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-14" value="" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="110" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-17" value="" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="160" y="150" width="150" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-18" value="&lt;u&gt;Username&lt;/u&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="170" width="130" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-19" value="&lt;u&gt;Captcha&lt;/u&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="195" width="130" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-20" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;Captcha&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="220" width="130" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-21" value="&lt;u&gt;Password&lt;/u&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="310" width="130" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-22" value="&lt;u&gt;Re-type Password&lt;/u&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="340" width="130" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-23" value="Enter" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="170" y="370" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-24" value="Exit" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="240" y="370" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="S-JiFb66_ukS4IbVvJK_-25" value="Login/Register Title" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="170" y="110" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="FrGuU-fpou35R_jMQp-p-1" value="Save to Database" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="550" y="40" width="100" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

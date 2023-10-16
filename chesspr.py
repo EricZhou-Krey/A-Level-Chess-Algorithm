@@ -1,31 +1,24 @@
 import pygame
-
 class PyGameWindow:
     def __init__(self, window_size, caption):
-        pygame.init()
         self.window_size = window_size
         self.window = pygame.display.set_mode(window_size)
         self.caption = caption
         self.running = True
-        
-    def whileRunning(self):
-        pass
     def whileEvent(self, events):
         pass
     def whileDrawing(self):
         pass
-    
     def run(self):
         while self.running:
-            self.whileRunning()
             events = pygame.event.get()
+            self.whileEvent(events)
             for event in events:
-                self.whileEvent(events)
                 if event.type == pygame.QUIT:
                     self.running = False
             self.whileDrawing()
             pygame.display.flip()
-        pygame.quit()       
+        pygame.quit()
 class Interface(PyGameWindow):
     def __init__(self, window_size, caption):
         super().__init__(window_size, caption)     
@@ -164,8 +157,7 @@ class ChessBoard(Interface):
             for tileIndex in range(1, numberOfTiles+1):
                 if self.board[starty+(tileIndex*tileIndexYModifier)][startx+(tileIndex*tileIndexXModifier)] != "__":
                     return True
-        return False
-            
+        return False       
     def checkValidMove(self, selectedPeice, moveCoordinate):
         ((peiceCoordinatey, peiceCoordinatex), peice) = selectedPeice
         (moveCoordinatey, moveCoordinatex) = moveCoordinate
