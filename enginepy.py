@@ -1,4 +1,5 @@
 import bitboard, time, math
+from icecream import ic
 class Engine:
     def __init__(self, bitboard_object, PAWN_MATERIAL_WEIGHT=1, BISHOP_MATERIAL_WEIGHT=3, KNIGHT_MATERIAL_WEIGHT=3, ROOK_WIEGHT=5, QUEEN_MATERIAL_WEIGHT=10,
                 #POSITIONAL_WEIGHT - indexed from 0-63, a1 to h8
@@ -61,7 +62,7 @@ class Engine:
                      2,4,6,7,7,6,4,2,
                      1,3,4,5,5,4,3,1,
                      0,1,2,3,3,2,1,0
-                ]
+                ],
                 KING_POSITIONAL_WEIGHT = [ #temp will change for later in game
                      0,0,0,0,0,0,0,0,
                      0,1,1,1,1,1,1,0,
@@ -89,11 +90,12 @@ class Engine:
             "KING" : KNIGHT_POSITIONAL_WEIGHT
         }
         self.bitboard_object = bitboard_object
-    def get_material_advantage(self):
+    @property
+    def material_advantage(self):
         d_material = 0
         w_material = 0
-        for key in self.bitboard_object.piece_bitboard.keys():
-            for board in self.bitboard_object.piece_bitboard[key]:
+        for key in self.bitboard_object.bitboard_dict.keys():
+            for board in self.bitboard_object.bitboard_dict[key]:
                 match key:
                     case "pawn":
                         w_material += self.PIECE_MATERIAL_WEIGHT["PAWN"]
@@ -116,11 +118,12 @@ class Engine:
                     case "Queen":
                         d_material += self.PIECE_MATERIAL_WEIGHT["QUEEN"]
         return w_material, d_material
-    def get_positional_advantage(self):
+    @property
+    def positional_advantage(self):
         w_positional = 0
         d_positional = 0
-        for key in self.bitboard_object.piece_bitboard.keys():
-            for board in self.bitboard_object.piece_bitboard[key]:
+        for key in self.bitboard_object.bitboard_dict.keys():
+            for board in self.bitboard_object.bitboard_dict[key]:
                 board_index = int(math.log2(board))
                 match key:
                     case "pawn":
@@ -160,11 +163,11 @@ class Engine:
                         d_positional += self.POSITIONAL_WEIGHT["KING"][board_index]
                         break
         return w_positional, d_positional
-    def get_strategical_advantage(self):
+    @property
+    def strategical_advantage(self):
         w_strategical = 0
         d_strategical = 0
-        white, dark = self.bitboard_object.get_piece_board()
-        move_board = self.bitboard_object.get_move_board(white, dark)
+        move_board = self.bitboard_object.move_board
         for bit in self.bitboard_object.correct_format(move_board[0]):
             if int(bit) == 1:
                 w_strategical += 1
@@ -172,18 +175,126 @@ class Engine:
             if int(bit) == 1:
                 d_strategical += 1
         return w_strategical, d_strategical
-    def get_total_advantage(self):
-        (w_strategical, d_strategical) = self.get_strategical_advantage()
-        (w_positional, d_positional) = self.get_positional_advantage()
-        (w_material, d_material) = self.get_material_advantage()
+    @property
+    def total_advantage(self):
+        (w_strategical, d_strategical) = self.strategical_advantage
+        (w_positional, d_positional) = self.positional_advantage
+        (w_material, d_material) = self.material_advantage
         w_advantage = w_strategical + w_positional + w_material
         d_advantage = d_strategical + d_positional + d_material
         return w_advantage, d_advantage
-    def evaluate(self, n_depth_max, time_max, current_board=0):
-        pass
-
+    
+    def mini_max_dict(self, position, max_time, max_depth,
+                      current_time=0, current_depth=0, current_max_depth=0,
+                      origin_pointer=0, move_pointer=0,apply_move_pointer=0,
+                      current_colour = "WHITE", current_moves=0, current_key_index=0, current_origin_list=0,
+                      move_evaluation={}, applied_moves=[]):
+        if max_time < current_time or max_depth < current_max_depth:
+            return move_evaluation
+        if current_time == 0:
+            current_moves, current_key_index, current_origin_list = self.get_moves_key_origin(position, current_colour, current_moves, current_key_index, current_origin_list)
+            move_evaluation[current_depth] = {}
+        applied_origin = current_origin_list[origin_pointer]
+        if current_depth == current_max_depth:
+            current_time += 1 # time
+            looping = True
+            for name_key in current_key_index:
+                for list_index in range(len(current_key_index[name_key])):
+                    if current_key_index[name_key][list_index] == applied_origin:
+                        applied_piece_key = name_key
+                        looping = False
+                        break
+                if not(looping):
+                    break
+            if move_pointer < len(current_moves[applied_origin]):
+                applied_to = current_moves[applied_origin][move_pointer]
+                applied_move = (applied_piece_key, applied_origin, applied_to)
+                
+                captured = position.apply_move(applied_move)
+                w_evaluation, d_evaluation = self.total_advantage
+                move_evaluation[current_depth][applied_move] = w_evaluation - d_evaluation
+                
+                position.revert_move(applied_move, captured)
+        move_evaluation, current_max_depth, origin_pointer, move_pointer = self.iterate_mini_max(
+            position, max_time, max_depth,
+            current_time, current_depth, current_max_depth,
+            origin_pointer, move_pointer, apply_move_pointer,
+            current_colour, current_moves, current_key_index, current_origin_list,
+            move_evaluation, applied_moves, applied_origin)
+        
+        #debugging, slows progam
+        #ic(current_depth, current_max_depth, current_colour, move_evaluation, applied_moves, current_moves, current_origin_list, move_pointer, origin_pointer)
+        
+        return self.mini_max_dict(
+            position, max_time, max_depth,
+            current_time, current_depth, current_max_depth,
+            origin_pointer, move_pointer,apply_move_pointer,
+            current_colour, current_moves, current_key_index, current_origin_list,
+            move_evaluation, applied_moves)
+            
+    def iterate_mini_max(
+        self, position, max_time, max_depth,
+        current_time, current_depth, current_max_depth,
+        origin_pointer, move_pointer, apply_move_pointer,
+        current_colour, current_moves, current_key_index, current_origin_list,
+        move_evaluation, applied_moves, applied_origin):
+        if move_pointer + 1 >= len(current_moves[applied_origin]):
+            move_pointer = 0
+            if origin_pointer + 1 >= len(current_origin_list):
+                origin_pointer = 0
+                move_evaluation, current_max_depth = self.simulate_next_move(
+                position, max_time, max_depth,
+                current_time, current_depth, current_max_depth,
+                origin_pointer, move_pointer,apply_move_pointer,
+                current_colour, current_moves, current_key_index, current_origin_list,
+                move_evaluation, applied_moves)
+            else:
+                origin_pointer += 1
+        else:
+            move_pointer += 1
+        return move_evaluation, current_max_depth, origin_pointer, move_pointer
+    
+    def simulate_next_move(
+        self, position, max_time, max_depth,
+        current_time, current_depth, current_max_depth,
+        origin_pointer, move_pointer,apply_move_pointer,
+        current_colour, current_moves, current_key_index, current_origin_list,
+        move_evaluation, applied_moves):
+        if not(current_max_depth + 1 >= max_depth):
+            for move in move_evaluation[current_depth].keys():
+                captured = position.apply_move(move)
+                applied_moves.append((move, captured))
+                if current_colour == "WHITE":
+                    new_colour = "BLACK"
+                else:
+                    new_colour = "WHITE"
+                new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(position, new_colour, current_moves, current_key_index, current_origin_list)
+                move_evaluation[current_depth][move] = {}
+                move_evaluation[current_depth][move][current_depth+1] = {}
+                move_evaluation[current_depth][move] = self.mini_max_dict(
+                    position, max_time, max_depth,
+                    current_time, current_depth + 1, current_max_depth,
+                    origin_pointer, move_pointer, apply_move_pointer,
+                    new_colour, new_moves, new_key_index, new_origin_list,
+                    move_evaluation[current_depth][move], applied_moves)
+                move, captured = applied_moves.pop()
+                position.revert_move(move, captured)
+        current_max_depth += 1
+        return move_evaluation, current_max_depth
+    
+    def get_moves_key_origin(self, position, colour, moves, key, origin_list):
+        if colour == "WHITE":
+            move_colour_index = 0
+        else:
+            move_colour_index = 1
+        moves, key  = position.split_move_dict[move_colour_index]
+        origin_list = list(moves.keys())
+        return moves, key, origin_list
+    
+    #current need to a save a dictionary with moves linked to the evaluation and using a merge sort at the end to find every move from best to worst
 if __name__ == "__main__":
     board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
     bitBoard = bitboard.BitBoard(board)
     engine = Engine(bitBoard)
-    engine.evaluate(1,1)
+    max_depth = int(input("Enter a depth, only low depth work fully: "))
+    ic(engine.mini_max_dict(bitBoard, 5000, max_depth))
