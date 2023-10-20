@@ -1,5 +1,22 @@
 import bitboard, time, math
+from sorting_techniques import pysort
 from icecream import ic
+class EngineParameters:
+    def __init__(self,
+                 origin_pointer, move_pointer, apply_move_pointer, evaluation_pointer,
+                 current_colour, current_moves, current_key_index, current_origin_list,
+                 applied_moves, evaluation_move):
+        self.origin_pointer = origin_pointer
+        self.move_pointer = move_pointer
+        self.apply_move_pointer = apply_move_pointer
+        self.evaluation_pointer = evaluation_pointer
+        self.current_colour = current_colour
+        self.current_moves = current_moves
+        self.current_key_index = current_key_index
+        self.current_origin_list = current_origin_list
+        self.applied_moves = applied_moves
+        self.evaluation_move = evaluation_move
+                
 class Engine:
     def __init__(self, bitboard_object, PAWN_MATERIAL_WEIGHT=1, BISHOP_MATERIAL_WEIGHT=3, KNIGHT_MATERIAL_WEIGHT=3, ROOK_WIEGHT=5, QUEEN_MATERIAL_WEIGHT=10,
                 #POSITIONAL_WEIGHT - indexed from 0-63, a1 to h8
@@ -90,6 +107,7 @@ class Engine:
             "KING" : KNIGHT_POSITIONAL_WEIGHT
         }
         self.bitboard_object = bitboard_object
+        self.py_sort = pysort.Sorting()
     @property
     def material_advantage(self):
         d_material = 0
@@ -183,57 +201,51 @@ class Engine:
         w_advantage = w_strategical + w_positional + w_material
         d_advantage = d_strategical + d_positional + d_material
         return w_advantage, d_advantage
-    
-    def mini_max_dict(self, position, max_time, max_depth,
-                      current_time=0, current_depth=0, current_max_depth=0,
-                      origin_pointer=0, move_pointer=0,apply_move_pointer=0,
+    def start_mini_max_dict(self, position, max_time, max_depth,
+                      origin_pointer=0, move_pointer=0, apply_move_pointer=0, evaluation_pointer=0,
                       current_colour = "WHITE", current_moves=0, current_key_index=0, current_origin_list=0,
-                      move_evaluation={}, applied_moves=[], move_to_evaluation={}):
-        if max_time < current_time or max_depth < current_max_depth:
-            return move_evaluation, move_to_evaluation
-        if current_time == 0:
-            current_moves, current_key_index, current_origin_list = self.get_moves_key_origin(position, current_colour, current_moves, current_key_index, current_origin_list)
-        applied_origin = current_origin_list[origin_pointer]
+                      applied_moves=[], evaluation_move={}):
+        engine_parameter = EngineParameters(
+                 origin_pointer, move_pointer, apply_move_pointer, evaluation_pointer,
+                 current_colour, current_moves, current_key_index, current_origin_list,
+                 applied_moves, evaluation_move)
+        engine_parameter.current_moves, engine_parameter.current_key_index, engine_parameter.current_origin_list = self.get_moves_key_origin(position, engine_parameter.current_colour, engine_parameter.current_moves, engine_parameter.current_key_index, engine_parameter.current_origin_list)
+        return self.mini_max_dict(engine_parameter, position, max_time, max_depth)
+    
+    def mini_max_dict(self, engine_parameter, position, max_time, max_depth, current_time=0, current_depth=0, current_max_depth=0, move_evaluation={}):
+        #change this so that the it returns only when the position becomes worse than a previous position
+        if (max_time < current_time) or (max_depth < current_max_depth): #self.not_best(engine_parameter.evaluation_move): #engine_parameter.max_depth < engine_parameter.current_max_depth:
+            return move_evaluation, engine_parameter.evaluation_move
+        applied_origin = engine_parameter.current_origin_list[engine_parameter.origin_pointer]
+        engine_parameter.applied_origin = applied_origin
         if current_depth == current_max_depth:
             current_time += 1 # time
             looping = True
-            for name_key in current_key_index:
-                for list_index in range(len(current_key_index[name_key])):
-                    if current_key_index[name_key][list_index] == applied_origin:
+            for name_key in engine_parameter.current_key_index:
+                for list_index in range(len(engine_parameter.current_key_index[name_key])):
+                    if engine_parameter.current_key_index[name_key][list_index] == applied_origin:
                         applied_piece_key = name_key
                         looping = False
                         break
                 if not(looping):
                     break
-            if move_pointer < len(current_moves[applied_origin]):
-                applied_to = current_moves[applied_origin][move_pointer]
+            if engine_parameter.move_pointer < len(engine_parameter.current_moves[applied_origin]):
+                applied_to = engine_parameter.current_moves[applied_origin][engine_parameter.move_pointer]
                 applied_move = (applied_piece_key, applied_origin, applied_to)
                 
                 captured = position.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
                 move_evaluation[applied_move] = w_evaluation - d_evaluation
-                if w_evaluation - d_evaluation not in move_to_evaluation.keys():
-                    move_to_evaluation[w_evaluation - d_evaluation] = []
-                move_to_evaluation[w_evaluation-d_evaluation].append(self.moves_to_current(applied_moves, applied_move))
-                
+                if w_evaluation - d_evaluation not in engine_parameter.evaluation_move.keys():
+                    engine_parameter.evaluation_move[w_evaluation - d_evaluation] = []
+                engine_parameter.evaluation_move[w_evaluation-d_evaluation].append(self.moves_to_current(engine_parameter.applied_moves, applied_move))
                 position.revert_move(applied_move, captured)
                 
-        move_evaluation, current_max_depth, origin_pointer, move_pointer = self.iterate_mini_max(
-            position, max_time, max_depth,
-            current_time, current_depth, current_max_depth,
-            origin_pointer, move_pointer, apply_move_pointer,
-            current_colour, current_moves, current_key_index, current_origin_list,
-            move_evaluation, applied_moves, applied_origin, move_to_evaluation)
+        move_evaluation, current_max_depth = self.iterate_mini_max(engine_parameter, position, max_time, max_depth, current_time, current_depth, current_max_depth, move_evaluation)
         
         #debugging, slows progam
-        #ic(current_depth, current_max_depth, current_colour, move_evaluation, applied_moves, current_moves, current_origin_list, move_pointer, origin_pointer)
-        
-        return self.mini_max_dict(
-            position, max_time, max_depth,
-            current_time, current_depth, current_max_depth,
-            origin_pointer, move_pointer,apply_move_pointer,
-            current_colour, current_moves, current_key_index, current_origin_list,
-            move_evaluation, applied_moves, move_to_evaluation)
+        #ic(engine_parameter.current_depth, engine_parameter.current_max_depth, engine_parameter.current_colour, move_evaluation, engine_parameter.applied_moves, engine_parameter.current_moves, engine_parameter.current_origin_list, engine_parameter.move_pointer, engine_parameter.origin_pointer)
+        return self.mini_max_dict(engine_parameter, position, max_time, max_depth, current_time, current_depth, current_max_depth, move_evaluation)
             
     def moves_to_current(self, applied_moves, applied_move):
         moves_to_current = []
@@ -243,54 +255,72 @@ class Engine:
         moves_to_current.append(applied_move)
         return moves_to_current
 
-    def iterate_mini_max(
-        self, position, max_time, max_depth,
-        current_time, current_depth, current_max_depth,
-        origin_pointer, move_pointer, apply_move_pointer,
-        current_colour, current_moves, current_key_index, current_origin_list,
-        move_evaluation, applied_moves, applied_origin, move_to_evaluation):
-        if move_pointer + 1 >= len(current_moves[applied_origin]):
-            move_pointer = 0
-            if origin_pointer + 1 >= len(current_origin_list):
-                origin_pointer = 0
-                move_evaluation, current_max_depth = self.simulate_next_move(
-                position, max_time, max_depth,
-                current_time, current_depth, current_max_depth,
-                origin_pointer, move_pointer,apply_move_pointer,
-                current_colour, current_moves, current_key_index, current_origin_list,
-                move_evaluation, applied_moves, move_to_evaluation)
+    def iterate_mini_max(self, engine_parameter, position, max_time, max_depth, current_time, current_depth, current_max_depth, move_evaluation):
+        if engine_parameter.move_pointer + 1 >= len(engine_parameter.current_moves[engine_parameter.applied_origin]):
+            engine_parameter.move_pointer = 0
+            if engine_parameter.origin_pointer + 1 >= len(engine_parameter.current_origin_list):
+                engine_parameter.origin_pointer = 0
+                move_evaluation, current_max_depth = self.simulate_next_move(engine_parameter, position, max_time, max_depth, current_time, current_depth, current_max_depth, move_evaluation)
             else:
-                origin_pointer += 1
+                engine_parameter.origin_pointer += 1
         else:
-            move_pointer += 1
-        return move_evaluation, current_max_depth, origin_pointer, move_pointer
+            engine_parameter.move_pointer += 1
+        return move_evaluation, current_max_depth
     
-    def simulate_next_move(
-        self, position, max_time, max_depth,
-        current_time, current_depth, current_max_depth,
-        origin_pointer, move_pointer,apply_move_pointer,
-        current_colour, current_moves, current_key_index, current_origin_list,
-        move_evaluation, applied_moves, move_to_evaluation):
+    def simulate_next_move(self, engine_parameter, position, max_time, max_depth, current_time, current_depth, current_max_depth, move_evaluation):
+        """
+        ordered_eval = self.order_eval_list(engine_parameter.evaluation_move)
+        search_move = engine_parameter.evaluation_move[ordered_eval[engine_parameter.evaluation_pointer]][engine_parameter.apply_move_pointer]
+        captured = position.apply_move(search_move)
+        engine_parameter.applied_moves.append((search_move, captured))
+        if engine_parameter.current_colour == "WHITE":
+            new_colour = "BLACK"
+        else:
+            new_colour = "WHITE"
+        new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(position, new_colour, engine_parameter.current_moves, engine_parameter.current_key_index, engine_parameter.current_origin_list)
+        move_evaluation[move] = {}
+        move_evaluation[move] = self.mini_max_dict(engine_parameter)[0]
+        
+        engine_parameter.origin_pointer = len(engine_parameter.current_origin_list)-1
+        move_pointer = len(engine_parameter.current_moves[applied_origin])-1
+        move, captured = engine_parameter.applied_moves.pop()
+        position.revert_move(move, captured)
+        
+        """
         if not(current_max_depth + 1 >= max_depth):
-            for move in move_evaluation.keys():
+            for move in list(move_evaluation):
                 captured = position.apply_move(move)
-                applied_moves.append((move, captured))
-                if current_colour == "WHITE":
-                    new_colour = "BLACK"
+                engine_parameter.applied_moves.append((move, captured))
+                old_colour = engine_parameter.current_colour
+                old_moves = engine_parameter.current_moves
+                old_key_index = engine_parameter.current_key_index
+                old_origin_list = engine_parameter.current_origin_list
+                
+                if engine_parameter.current_colour == "WHITE":
+                    engine_parameter.current_colour = "BLACK"
                 else:
-                    new_colour = "WHITE"
-                new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(position, new_colour, current_moves, current_key_index, current_origin_list)
-                move_evaluation[move] = {}
-                move_evaluation[move] = self.mini_max_dict(
-                    position, max_time, max_depth,
-                    current_time, current_depth + 1, current_max_depth,
-                    origin_pointer, move_pointer, apply_move_pointer,
-                    new_colour, new_moves, new_key_index, new_origin_list,
-                    move_evaluation[move], applied_moves, move_to_evaluation)[0]
-                move, captured = applied_moves.pop()
-                position.revert_move(move, captured)
+                    engine_parameter.current_colour = "WHITE"
+                moves, key_index, origin_list = self.get_moves_key_origin(position, engine_parameter.current_colour, engine_parameter.current_moves, engine_parameter.current_key_index, engine_parameter.current_origin_list)
+                engine_parameter.current_moves, engine_parameter.current_key_index, engine_parameter.current_origin_list = moves, key_index, origin_list
+                
+                move_evaluation[move] = self.mini_max_dict(engine_parameter, position, max_time, max_depth, current_time, current_depth+1, current_max_depth, move_evaluation)[0]
+                
+                revert_move, captured = engine_parameter.applied_moves.pop()
+                position.revert_move(revert_move, captured)
+                engine_parameter.current_colour = old_colour
+                engine_parameter.current_moves = old_moves
+                engine_parameter.current_key_index = old_key_index
+                engine_parameter.current_origin_list = old_origin_list
+                
+        engine_parameter.origin_pointer = len(engine_parameter.current_origin_list)-1
+        engine_parameter.move_pointer = len(engine_parameter.current_moves[engine_parameter.applied_origin])-1
         current_max_depth += 1
         return move_evaluation, current_max_depth
+    def order_eval_list(self, applied_move):
+        order_eval = []
+        for eval in evaluation_move.keys:
+            order_eval.append(eval)
+        return self.py_sort.mergeSort(order_eval)
 
     def get_moves_key_origin(self, position, colour, moves, key, origin_list):
         if colour == "WHITE":
@@ -307,4 +337,5 @@ if __name__ == "__main__":
     bitBoard = bitboard.BitBoard(board)
     engine = Engine(bitBoard)
     max_depth = int(input("Enter a depth, only low depth work fully: "))
-    move_evaluation, move_to_evaluation = engine.mini_max_dict(bitBoard, 5000, max_depth)
+    move_evaluation, evaluation_move = engine.start_mini_max_dict(bitBoard, 50, max_depth)
+    ic(move_evaluation, evaluation_move)
