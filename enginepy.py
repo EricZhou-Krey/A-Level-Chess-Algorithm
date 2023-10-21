@@ -243,9 +243,9 @@ class Engine:
         origin_pointer, move_pointer, apply_move_pointer, evaluation_pointer,
         current_colour, current_moves, current_key_index, current_origin_list,
         move_evaluation, applied_moves, applied_origin, evaluation_move):
-        if move_pointer >= len(current_moves[applied_origin]):
+        if move_pointer + 1 >= len(current_moves[applied_origin]):
             move_pointer = 0
-            if origin_pointer >= len(current_origin_list):
+            if origin_pointer + 1 >= len(current_origin_list):
                 origin_pointer = 0
                 move_evaluation, current_max_depth = self.simulate_next_move(
                 position, max_time, max_depth,
@@ -265,7 +265,9 @@ class Engine:
         origin_pointer, move_pointer, apply_move_pointer, evaluation_pointer,
         current_colour, current_moves, current_key_index, current_origin_list,
         move_evaluation, applied_moves, evaluation_move):
-        """
+        
+        #temp location
+        #misplaced here should go to location where it only gets called once after moves new checking of moves
         ordered_eval = self.order_eval_list(evaluation_move)
         search_move = evaluation_move[ordered_eval[len(ordered_eval)-evaluation_pointer]][apply_move_pointer]
         captured = position.apply_move(search_move)
@@ -286,9 +288,12 @@ class Engine:
         position.revert_move(move, captured)
         
         if apply_move_pointer >= len(evaluation_move[ordered_eval[len(ordered_eval)-evaluation_pointer]]):
+            apply_move_pointer = 0
+            evaluation_pointer += 1
+        else:
+            apply_move_pointer += 1
             
-        
-        return move_evaluation
+        return move_evaluation, evaluation_pointer, apply_move_pointer
         """
         if current_max_depth + 1 < max_depth:
             for move in move_evaluation.keys():
@@ -310,7 +315,7 @@ class Engine:
                 position.revert_move(move, captured)
         current_max_depth += 1
         return move_evaluation, current_max_depth
-        
+        """
     
     def remove_overlappying_moves(self, evaluation_move, applied_moves):
         del_list = []
@@ -339,7 +344,7 @@ class Engine:
         moves_to_current.append(applied_move)
         return moves_to_current
     
-    def order_eval_list(self, evaluation_move): #wip
+    def order_eval_list(self, evaluation_move):
         eval_list = list(evaluation_move.keys())
         return self.merge_sort(eval_list)
     
