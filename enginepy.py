@@ -243,9 +243,9 @@ class Engine:
         origin_pointer, move_pointer, apply_move_pointer, evaluation_pointer,
         current_colour, current_moves, current_key_index, current_origin_list,
         move_evaluation, applied_moves, applied_origin, evaluation_move):
-        if move_pointer + 1 >= len(current_moves[applied_origin]):
+        if move_pointer >= len(current_moves[applied_origin]):
             move_pointer = 0
-            if origin_pointer + 1 >= len(current_origin_list):
+            if origin_pointer >= len(current_origin_list):
                 origin_pointer = 0
                 move_evaluation, current_max_depth = self.simulate_next_move(
                 position, max_time, max_depth,
@@ -267,7 +267,7 @@ class Engine:
         move_evaluation, applied_moves, evaluation_move):
         """
         ordered_eval = self.order_eval_list(evaluation_move)
-        search_move = evaluation_move[ordered_eval[evaluation_pointer]][apply_move_pointer]
+        search_move = evaluation_move[ordered_eval[len(ordered_eval)-evaluation_pointer]][apply_move_pointer]
         captured = position.apply_move(search_move)
         applied_moves.append((search_move, captured))
         if current_colour == "WHITE":
@@ -285,6 +285,10 @@ class Engine:
         move, captured = applied_moves.pop()
         position.revert_move(move, captured)
         
+        if apply_move_pointer >= len(evaluation_move[ordered_eval[len(ordered_eval)-evaluation_pointer]]):
+            
+        
+        return move_evaluation
         """
         if current_max_depth + 1 < max_depth:
             for move in move_evaluation.keys():
@@ -306,6 +310,7 @@ class Engine:
                 position.revert_move(move, captured)
         current_max_depth += 1
         return move_evaluation, current_max_depth
+        
     
     def remove_overlappying_moves(self, evaluation_move, applied_moves):
         del_list = []
@@ -335,10 +340,40 @@ class Engine:
         return moves_to_current
     
     def order_eval_list(self, evaluation_move): #wip
-        order_eval = []
-        for eval in evaluation_move.keys:
-            order_eval.append(eval)
-        return self.py_sort.mergeSort(order_eval)
+        eval_list = list(evaluation_move.keys())
+        return self.merge_sort(eval_list)
+    
+    def merge_sort(self, list):
+        if len(list) > 1:
+            mid = len(list) // 2
+            left = list[:mid]
+            right = list[mid:]
+            
+            self.merge_sort(left)
+            self.merge_sort(right)
+            
+            list = self.compare(list, left, right)
+            
+        return list
+    
+    def compare(self, list, left, right, left_pointer=0, right_pointer=0, list_pointer=0):
+        if left_pointer  >= len(left) or right_pointer >= len(right):
+            if left_pointer < len(left):
+                list[list_pointer] = left[left_pointer]
+                list = self.compare(list, left, right, left_pointer+1, right_pointer, list_pointer+1)
+            elif right_pointer < len(right):
+                list[list_pointer] = right[right_pointer]
+                list = self.compare(list, left, right, left_pointer, right_pointer+1, list_pointer+1)
+            else:
+                return list
+        else:
+            if left[left_pointer] < right[right_pointer]:
+                list[list_pointer] = left[left_pointer]
+                list = self.compare(list, left, right, left_pointer+1, right_pointer, list_pointer+1)
+            else:
+                list[list_pointer] = right[right_pointer]
+                list = self.compare(list, left, right, left_pointer, right_pointer+1, list_pointer+1)
+        return list
     
     def get_moves_key_origin(self, position, colour):
         if colour == "WHITE":
