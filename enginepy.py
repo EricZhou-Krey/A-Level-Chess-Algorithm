@@ -93,8 +93,6 @@ class Engine:
         self.extending = True
         self.origin_pointer = 0
         self.move_pointer = 0
-        self.apply_move_pointer = 0
-        self.evaluation_pointer = 0
         self.current_time = 0
         self.current_best_eval = 0
     @property
@@ -191,14 +189,12 @@ class Engine:
         d_advantage = d_strategical + d_positional + d_material
         return w_advantage, d_advantage
     
-    #currently return  because it does not continue searches that it leaves after 1 move as black is better on their own move
-    def mini_max_dict(self, position, max_time, max_depth,
-                      current_depth=0, current_max_depth=0,
+    def min_max_dict(self, max_time,
+                      current_depth=0, current_evaluation_move=[], ordered_eval=[],
                       current_colour="WHITE", current_moves=0, current_key_index=0, current_origin_list=0,
                       move_evaluation={}, applied_moves=[], evaluation_move={}):
-        
         if self.current_time == 0:
-            current_moves, current_key_index, current_origin_list = self.get_moves_key_origin(position, current_colour)
+            current_moves, current_key_index, current_origin_list = self.get_moves_key_origin(self.bitboard_object, current_colour)
             if current_colour == "WHITE":
                 self.current_best_eval = -math.inf
             else:
@@ -207,6 +203,10 @@ class Engine:
             return move_evaluation, evaluation_move
         applied_origin = current_origin_list[self.origin_pointer]
         self.current_time += 1
+        if type(move_evaluation) is float:
+            return move_evaluation, evaluation_move
+        elif not(self.extending) and not(self.is_current_best(move_evaluation, current_colour, current_depth)):
+            return move_evaluation, evaluation_move
         if self.extending:
             looping = True
             for name_key in current_key_index:
@@ -221,131 +221,68 @@ class Engine:
                 applied_to = current_moves[applied_origin][self.move_pointer]
                 applied_move = (applied_piece_key, applied_origin, applied_to)
                 
-                captured = position.apply_move(applied_move)
+                captured = self.bitboard_object.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
                 move_evaluation[applied_move] = w_evaluation - d_evaluation
                 
-                evaluation_move = self.remove_overlappying_moves(evaluation_move, applied_moves)
                 if w_evaluation - d_evaluation not in evaluation_move.keys():
                     evaluation_move[w_evaluation-d_evaluation] = []
                 evaluation_move[w_evaluation-d_evaluation].append(self.moves_to_current(applied_moves, applied_move))
+                evaluation_move = self.remove_overlappying_moves(evaluation_move, applied_moves)
                 
-                position.revert_move(applied_move, captured)
+                self.bitboard_object.revert_move(applied_move, captured)
                 
-            move_evaluation = self.iterate_mini_max(
-                position, max_time, max_depth,
-                current_depth, current_max_depth,
-                current_colour, current_moves, current_key_index, current_origin_list,
-                move_evaluation, applied_moves, applied_origin, evaluation_move)
+            move_evaluation = self.iterate_min_max(current_moves, current_origin_list, move_evaluation, applied_origin)
         else:
-            if not(self.is_current_best(move_evaluation, applied_moves, current_colour, current_depth)):
-                return move_evaluation, evaluation_move
-            move_evaluation = self.simulate_next_move(
-                position, max_time, max_depth,
-                current_depth, current_max_depth,
-                current_colour, current_moves, current_key_index, current_origin_list,
-                move_evaluation, applied_moves, evaluation_move)
+            move_evaluation = self.simulate_next_move(max_time, current_depth, current_colour, move_evaluation, applied_moves)
         
-        return self.mini_max_dict(
-            position, max_time, max_depth,
-            current_depth, current_max_depth,
+        return self.min_max_dict(
+            max_time,
+            current_depth, current_evaluation_move, ordered_eval,
             current_colour, current_moves, current_key_index, current_origin_list,
             move_evaluation, applied_moves, evaluation_move)
             
-    def iterate_mini_max(
-        self, position, max_time, max_depth,
-        current_depth, current_max_depth,
-        current_colour, current_moves, current_key_index, current_origin_list,
-        move_evaluation, applied_moves, applied_origin, evaluation_move):
+    def iterate_min_max(self, current_moves, current_origin_list, move_evaluation, applied_origin):
         if self.move_pointer + 1 >= len(current_moves[applied_origin]):
             self.move_pointer = 0
             if self.origin_pointer + 1 >= len(current_origin_list):
                 self.origin_pointer = 0
-                move_evaluation = self.simulate_next_move(
-                position, max_time, max_depth,
-                current_depth, current_max_depth,
-                current_colour, current_moves, current_key_index, current_origin_list,
-                move_evaluation, applied_moves, evaluation_move)
+                self.extending = False
             else:
                 self.origin_pointer += 1
         else:
             self.move_pointer += 1
         return move_evaluation
     
-    def simulate_next_move(
-        self, position, max_time, max_depth,
-        current_depth, current_max_depth,
-        current_colour, current_moves, current_key_index, current_origin_list,
-        move_evaluation, applied_moves, evaluation_move):
-        
-        #temp location
-        #misplaced here should go to location where it only gets called once after moves new checking of moves
-        
-        current_evaluation_move = self.include_overlappying_moves(evaluation_move, applied_moves)
-        ordered_eval = self.order_eval_list(current_evaluation_move)
-    
-        if current_colour == "WHITE":
-            search_moves = current_evaluation_move[ordered_eval[len(ordered_eval)-self.evaluation_pointer-1]][self.apply_move_pointer]
-        else:
-            search_moves = current_evaluation_move[ordered_eval[self.evaluation_pointer]][self.apply_move_pointer]
-        
-        search_move = search_moves[len(search_moves)-1]
-        
-        captured = position.apply_move(search_move)
+    def simulate_next_move(self, max_time, current_depth, current_colour, move_evaluation, applied_moves):
+        if move_evaluation == {}:
+            if current_colour == "WHITE":
+                return -math.inf
+            else:
+                return math.inf
+        search_move = self.current_min_max(move_evaluation, current_colour)[1]
+        captured = self.bitboard_object.apply_move(search_move)
         applied_moves.append(search_move)
         if current_colour == "WHITE":
             new_colour = "BLACK"
         else:
             new_colour = "WHITE"
+            
         self.extending = True
-        new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(position, new_colour)
-        self.evaluation_pointer = self.apply_move_pointer = 0
+        new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(self.bitboard_object, new_colour)
         move_evaluation[search_move] = {}
-        move_evaluation[search_move] = self.mini_max_dict(
-                    position, max_time, max_depth,
-                    current_depth + 1, current_max_depth,
+        move_evaluation[search_move] = self.min_max_dict(
+                    max_time,
+                    current_depth + 1, [], [],
                     new_colour, new_moves, new_key_index, new_origin_list,
                     move_evaluation[search_move], applied_moves)[0]
+        self.current_best_eval = self.current_min_max(move_evaluation, current_colour)[0]
         move = applied_moves.pop()
-        position.revert_move(move, captured)
+        self.bitboard_object.revert_move(move, captured)
         self.extending = False
-        ordered_eval = self.order_eval_list(evaluation_move)
-        if (self.apply_move_pointer + 1 >= len(evaluation_move[ordered_eval[self.evaluation_pointer]]) and current_colour == "BLACK") or (
-            self.apply_move_pointer + 1 >= len(evaluation_move[ordered_eval[len(ordered_eval)-self.evaluation_pointer-1]]) and current_colour == "WHITE"):
-            self.apply_move_pointer = 0
-            if self.evaluation_pointer + 1 >= len(evaluation_move):
-                self.evaluation_pointer = 0
-            else:
-                self.evaluation_pointer += 1
-        else:
-            self.apply_move_pointer += 1
-            
         return move_evaluation
-        """
-        if current_max_depth + 1 < max_depth:
-            for move in move_evaluation.keys():
-                captured = position.apply_move(move)
-                applied_moves.append((move, captured))
-                if current_colour == "WHITE":
-                    new_colour = "BLACK"
-                else:
-                    new_colour = "WHITE"
-                new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(position, new_colour)
-                move_evaluation[move] = {}
-                move_evaluation[move] = self.mini_max_dict(
-                    position, max_time, max_depth,
-                    current_depth + 1, current_max_depth,
-                    new_colour, new_moves, new_key_index, new_origin_list,
-                    move_evaluation[move], applied_moves)[0]
-                move, captured = applied_moves.pop()
-                position.revert_move(move, captured)
-        current_max_depth += 1
-        return move_evaluation, current_max_depth
-        """
-    
 
-    def is_current_best(self, move_evaluation, applied_moves, current_colour, current_depth):
-        #not working
+    def is_current_best(self, move_evaluation, current_colour, current_depth):
         if not(len(move_evaluation) > 0):
             return True
         if current_depth % 2 == 1:
@@ -355,7 +292,7 @@ class Engine:
                 original_colour = "WHITE"
         else:
             original_colour = current_colour
-        min_max = self.current_min_max(move_evaluation, current_colour)
+        min_max = self.current_min_max(move_evaluation, current_colour)[0]
         if original_colour == "WHITE" and min_max >= self.current_best_eval:
             self.current_best_eval = min_max
             return True
@@ -368,27 +305,24 @@ class Engine:
     def current_min_max(self, move_evaluation, current_colour):
         if current_colour == "WHITE":
             min_max = -math.inf
+            next_colour = "BLACK"
         else:
             min_max = math.inf
+            next_colour = "WHITE"
         for move in move_evaluation.keys():
+            if type(move_evaluation[move]) is float or type(move_evaluation[move]) is int:
+                evaluation = move_evaluation[move]
+            elif type(move_evaluation[move]) is dict:
+                evaluation = self.current_min_max(move_evaluation[move], next_colour)[0]
             if current_colour == "WHITE":
-                if move_evaluation[move] > min_max:
-                    min_max = move_evaluation[move]
+                if evaluation >= min_max:
+                    min_max = evaluation
+                    min_max_move = move
             else:
-                if move_evaluation[move] < min_max:
-                    min_max = move_evaluation[move]
-        return min_max
-
-    def include_overlappying_moves(self, evaluation_move, applied_moves):
-        new_evaluation_move = {}
-        for eval in evaluation_move.keys():
-            for moves in evaluation_move[eval]:
-                check_moves = moves[:len(moves)-1]
-                if check_moves == applied_moves:
-                    if eval not in new_evaluation_move.keys():
-                        new_evaluation_move[eval] = []
-                    new_evaluation_move[eval].append(moves)
-        return new_evaluation_move
+                if evaluation <= min_max:
+                    min_max = evaluation
+                    min_max_move = move
+        return min_max, min_max_move
 
     def remove_overlappying_moves(self, evaluation_move, applied_moves):
         del_list = []
@@ -463,12 +397,14 @@ class Engine:
         origin_list = list(moves.keys())
         return moves, key, origin_list
     
-    #current need to a save a dictionary with moves linked to the evaluation and using a merge sort at the end to find every move from best to worst
 if __name__ == "__main__":
-    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+    #board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+    board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
     bitBoard = bitboard.BitBoard(board)
+    bitBoard.output_bitboard_formatted(bitBoard.combined_board[0]|bitBoard.combined_board[1])
     engine = Engine(bitBoard)
-    #max_depth = int(input("Enter a depth, only low depth work fully: "))
     max_time = int(input("Enter max time: "))
-    move_evaluation, evaluation_move = engine.mini_max_dict(bitBoard, max_time, 0)
-    ic(evaluation_move)
+    move_evaluation, evaluation_move = engine.min_max_dict(max_time, current_colour="WHITE")
+    ic(move_evaluation)
+    ic(engine.current_min_max(move_evaluation, "WHITE"))
+    

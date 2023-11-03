@@ -1,6 +1,7 @@
 import math
 from icecream import ic
 class PieceInterface:
+    
     def get_knight_bitboard(self, board, similar=0):
         fileA = self.file_edge_bitboard["A"]
         fileB = self.file_edge_bitboard["B"]
