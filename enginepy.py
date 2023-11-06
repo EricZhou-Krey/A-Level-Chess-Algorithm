@@ -63,7 +63,7 @@ class Engine:
                      1,3,4,5,5,4,3,1,
                      0,1,2,3,3,2,1,0
                 ],
-                KING_POSITIONAL_WEIGHT = [ #temp will change for later in game
+                KING_POSITIONAL_WEIGHT = [ 
                      0,0,0,0,0,0,0,0,
                      0,1,1,1,1,1,1,0,
                      0,1,2,2,2,2,1,0,
@@ -87,7 +87,7 @@ class Engine:
             "KNIGHT" : KNIGHT_POSITIONAL_WEIGHT,
             "ROOK" : ROOK_POSITIONAL_WEIGHT,
             "QUEEN" : QUEEN_POSITIONAL_WEIGHT,
-            "KING" : KNIGHT_POSITIONAL_WEIGHT
+            "KING" : KING_POSITIONAL_WEIGHT
         }
         self.bitboard_object = bitboard_object
         self.extending = True
@@ -173,10 +173,10 @@ class Engine:
         w_strategical = 0
         d_strategical = 0
         move_board = self.bitboard_object.move_board
-        for bit in self.bitboard_object.correct_format(move_board[0]):
+        for bit in str(move_board[0])[::-1]:
             if int(bit) == 1:
                 w_strategical += 1
-        for bit in self.bitboard_object.correct_format(move_board[1]):
+        for bit in str(move_board[1])[::-1]:
             if int(bit) == 1:
                 d_strategical += 1
         return w_strategical, d_strategical
@@ -218,8 +218,12 @@ class Engine:
                 if not(looping):
                     break
             if self.move_pointer < len(current_moves[applied_origin]):
-                applied_to = current_moves[applied_origin][self.move_pointer]
-                applied_move = (applied_piece_key, applied_origin, applied_to)
+                if type(current_moves[applied_origin][self.move_pointer]) is int:
+                    applied_to = current_moves[applied_origin][self.move_pointer]
+                    applied_move = (applied_piece_key, applied_origin, applied_to)
+                else:
+                    applied_to, promote_key = current_moves[applied_origin][self.move_pointer]
+                    applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
                 
                 captured = self.bitboard_object.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
@@ -255,11 +259,6 @@ class Engine:
         return move_evaluation
     
     def simulate_next_move(self, max_time, current_depth, current_colour, move_evaluation, applied_moves):
-        if move_evaluation == {}:
-            if current_colour == "WHITE":
-                return -math.inf
-            else:
-                return math.inf
         search_move = self.current_min_max(move_evaluation, current_colour)[1]
         captured = self.bitboard_object.apply_move(search_move)
         applied_moves.append(search_move)
@@ -276,6 +275,11 @@ class Engine:
                     current_depth + 1, [], [],
                     new_colour, new_moves, new_key_index, new_origin_list,
                     move_evaluation[search_move], applied_moves)[0]
+        if move_evaluation[search_move] == {}:
+            if current_colour == "WHITE":
+                return math.inf
+            else:
+                return -math.inf
         self.current_best_eval = self.current_min_max(move_evaluation, current_colour)[0]
         move = applied_moves.pop()
         self.bitboard_object.revert_move(move, captured)
@@ -400,11 +404,12 @@ class Engine:
 if __name__ == "__main__":
     #board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
     board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
-    bitBoard = bitboard.BitBoard(board)
-    bitBoard.output_bitboard_formatted(bitBoard.combined_board[0]|bitBoard.combined_board[1])
+    bitBoard = bitboard.IBitBoard(board)
+    bitBoard.output_board_formatted()
     engine = Engine(bitBoard)
     max_time = int(input("Enter max time: "))
     move_evaluation, evaluation_move = engine.min_max_dict(max_time, current_colour="WHITE")
     ic(move_evaluation)
     ic(engine.current_min_max(move_evaluation, "WHITE"))
+    #progress of bitboard first
     
