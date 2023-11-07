@@ -402,8 +402,8 @@ class Engine:
         return moves, key, origin_list
     
 if __name__ == "__main__":
-    #board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
-    board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
+    board = ".............k.....r...p...R.P......P.P.P..p...P.P...P........K."
+    ic(len(board))
     bitBoard = bitboard.IBitBoard(board)
     bitBoard.output_board_formatted()
     engine = Engine(bitBoard)

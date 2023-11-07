@@ -295,8 +295,11 @@ class IBitBoard(IPiece):
         if bitboard == " ":
             bitboard = self.combined_board[0]|self.combined_board[1]
         board = format(bitboard, "064b")
-        for row in range(1,(len(board)//8)):
-            print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
+        for row in range(0,(len(board)//8)):
+            if row*8-1 < 0:
+                print(" ".join(board[((row+1)*8)-1::-1]), row)
+            else:
+                print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
         
     def output_board_formatted(self):
@@ -304,8 +307,11 @@ class IBitBoard(IPiece):
         for piece_key in self.bitboard_dict.keys():
             for bitboard in self.bitboard_dict[piece_key]:
                 board[63-int(math.log2(bitboard))] = piece_key[0]
-        for row in range(1,(len(board)//8)):
-            print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
+        for row in range(0,(len(board)//8)):
+            if row*8-1 < 0:
+                print(" ".join(board[((row+1)*8)-1::-1]), row)
+            else:
+                print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
         
     @property
@@ -419,5 +425,6 @@ class IBitBoard(IPiece):
         return pw_board, pd_board
 
 if __name__ == "__main__":
-    board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K.
+    #board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
+    board = ".............k.....r...p...R.P......P.P.P..p...P.P...P........K."
     bitBoard = IBitBoard(board)
