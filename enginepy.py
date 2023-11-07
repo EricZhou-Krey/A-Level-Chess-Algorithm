@@ -267,23 +267,26 @@ class Engine:
         else:
             new_colour = "WHITE"
             
-        self.extending = True
-        new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(self.bitboard_object, new_colour)
-        move_evaluation[search_move] = {}
-        move_evaluation[search_move] = self.min_max_dict(
-                    max_time,
-                    current_depth + 1, [], [],
-                    new_colour, new_moves, new_key_index, new_origin_list,
-                    move_evaluation[search_move], applied_moves)[0]
-        if move_evaluation[search_move] == {}:
-            if current_colour == "WHITE":
-                return math.inf
-            else:
-                return -math.inf
+        
+        if not(self.bitboard_object.king_safe()) and current_colour == "WHITE":
+            move_evaluation[search_move] = -math.inf
+        elif not(self.bitboard_object.king_safe(False)) and current_colour == "BLACK":
+            move_evaluation[search_move] = math.inf
+        elif move_evaluation[search_move] == {}:
+            move_evaluation[search_move] = 0
+        else:
+            self.extending = True
+            new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(self.bitboard_object, new_colour)
+            move_evaluation[search_move] = {}
+            move_evaluation[search_move] = self.min_max_dict(
+                        max_time,
+                        current_depth + 1, [], [],
+                        new_colour, new_moves, new_key_index, new_origin_list,
+                        move_evaluation[search_move], applied_moves)[0]
+            self.extending = False
         self.current_best_eval = self.current_min_max(move_evaluation, current_colour)[0]
         move = applied_moves.pop()
         self.bitboard_object.revert_move(move, captured)
-        self.extending = False
         return move_evaluation
 
     def is_current_best(self, move_evaluation, current_colour, current_depth):
@@ -402,7 +405,7 @@ class Engine:
         return moves, key, origin_list
     
 if __name__ == "__main__":
-    board = ".............k.....r...p...R.P......P.P.P..p...P.P...P........K."
+    board = ".............k.........p...P.P........P.P..p...P.P...P........K."
     ic(len(board))
     bitBoard = bitboard.IBitBoard(board)
     bitBoard.output_board_formatted()
@@ -411,5 +414,4 @@ if __name__ == "__main__":
     move_evaluation, evaluation_move = engine.min_max_dict(max_time, current_colour="WHITE")
     ic(move_evaluation)
     ic(engine.current_min_max(move_evaluation, "WHITE"))
-    #progress of bitboard first
     

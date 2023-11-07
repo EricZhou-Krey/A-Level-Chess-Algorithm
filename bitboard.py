@@ -75,12 +75,12 @@ class IPiece():
         rankEight = self.file_edge_bitboard["8"]
         if isWhite:
             move = (board << 8) & ~(similar) #N
-            move |= ((board & ~(rankSeven)) << 16) & ~(similar) & ~((similar & ~(rankOne)) >> 8) #NN
+            move |= ((board & ~(rankSeven) & rankOne) << 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankOne)) >> 8) #NN
             move |= ((board & ~(fileA)) << 7) & opposing #NW
             move |= ((board & ~(fileH)) << 9) & opposing #NE
         else:
             move = (board >> 8) & ~(similar) #S
-            move |= ((board & ~(rankTwo)) >> 16) & ~(similar) & ~((similar & ~(rankEight)) << 8) #SS
+            move |= ((board & ~(rankTwo) & rankSeven) >> 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankEight)) << 8) #SS
             move |= ((board & ~(fileH)) >> 7) & opposing #SE
             move |= ((board & ~(fileA)) >> 9) & opposing #SW
         return move
@@ -306,18 +306,37 @@ class IBitBoard(IPiece):
         board = ["." for x in range(64)]
         for piece_key in self.bitboard_dict.keys():
             for bitboard in self.bitboard_dict[piece_key]:
-                board[63-int(math.log2(bitboard))] = piece_key[0]
+                if piece_key.lower() == "knight":
+                    if piece_key[0].isupper():
+                        board[63-int(math.log2(bitboard))] = piece_key[1].upper()
+                    else:
+                        board[63-int(math.log2(bitboard))] = piece_key[1]
+                else:
+                    board[63-int(math.log2(bitboard))] = piece_key[0]
         for row in range(0,(len(board)//8)):
             if row*8-1 < 0:
                 print(" ".join(board[((row+1)*8)-1::-1]), row)
             else:
                 print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
-        
+
+    def king_safe(self, isWhite=True):
+        if isWhite:
+            king_origin = int(math.log2(self.bitboard_dict["king"][0]))
+        else:
+            king_origin = int(math.log2(self.bitboard_dict["King"][0]))
+        move_dict = self.move_dict[0]
+        for origin in move_dict.keys():
+            for to in move_dict[origin]:
+                if to == king_origin:
+                    return False
+        return True
+    
     @property
     def legal_move_dict(self):
         move_dictionary, key_to_index = self.move_dict
         legal_move_dict = {}
+        legal_key_index = {ki_piece_key:[] for ki_piece_key in key_to_index.keys()}
         for origin in move_dictionary.keys():
             for key in key_to_index.keys():
                 if origin in key_to_index[key]:
@@ -325,26 +344,24 @@ class IBitBoard(IPiece):
                     break
             for to in move_dictionary[origin]:
                 safe = True
-                move = (piece_key, origin, to)
-                if piece_key[0].isupper():
-                    king_origin = int(math.log2(self.bitboard_dict["King"][0]))
+                if type(to) is tuple:
+                    move = (piece_key, origin, to[0], to[1])
                 else:
-                    king_origin = int(math.log2(self.bitboard_dict["king"][0]))
+                    move = (piece_key, origin, to)
                 captured = self.apply_move(move)
-                check_move_dict = self.move_dict[0]
-                for check_origin in check_move_dict.keys():
-                    for check_to in check_move_dict[check_origin]:
-                        if check_to == king_origin:
-                            safe = False
-                            break
-                    if safe == False:
-                        break
+                if piece_key[0].isupper():
+                    isWhite = False
+                else:
+                    isWhite = True
+                safe = self.king_safe(isWhite)
                 self.revert_move(move, captured)
                 if safe == True:
                     if not(origin in legal_move_dict.keys()):
                         legal_move_dict[origin] = []
                     legal_move_dict[origin].append(to)
-        return legal_move_dict
+                    if not(origin in legal_key_index[piece_key]):
+                        legal_key_index[piece_key].append(origin)
+        return legal_move_dict, legal_key_index
     @property
     def move_dict(self):
         white, dark = self.combined_board
@@ -390,7 +407,6 @@ class IBitBoard(IPiece):
                     w_move_dict[origin] = move_dict[origin]
                     w_key[key] = key_index[key]
                 else:
-                    
                     d_move_dict[origin] = move_dict[origin]
                     d_key[key] = key_index[key]
         return (w_move_dict, w_key), (d_move_dict, d_key)
@@ -428,3 +444,4 @@ if __name__ == "__main__":
     #board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
     board = ".............k.....r...p...R.P......P.P.P..p...P.P...P........K."
     bitBoard = IBitBoard(board)
+    ic(bitBoard.legal_move_dict)
