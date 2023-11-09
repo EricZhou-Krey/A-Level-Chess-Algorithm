@@ -290,6 +290,24 @@ class IBitBoard(IPiece):
         if captured and self.captured_piece[0]:
             piece, bitboard = self.captured_piece.pop()
             self.bitboard_dict[piece].append(bitboard)
+            
+    def king_safe(self, isWhite=True):
+        if isWhite:
+            if len(self.bitboard_dict["king"]) == 0:
+                return False
+            else:
+                king_origin = int(math.log2(self.bitboard_dict["king"][0]))
+        else:
+            if len(self.bitboard_dict["King"]) == 0:
+                return False
+            else:
+                king_origin = int(math.log2(self.bitboard_dict["King"][0]))
+        move_dict = self.move_dict[0]
+        for origin in move_dict.keys():
+            for to in move_dict[origin]:
+                if to == king_origin:
+                    return False
+        return True
     
     def output_bitboard_formatted(self, bitboard=" "):
         if bitboard == " ":
@@ -319,18 +337,23 @@ class IBitBoard(IPiece):
             else:
                 print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
-
-    def king_safe(self, isWhite=True):
-        if isWhite:
-            king_origin = int(math.log2(self.bitboard_dict["king"][0]))
+    
+    def display_move(self, move):
+        if len(move) == 3:
+            piece, origin, to = move
+            promote = False
         else:
-            king_origin = int(math.log2(self.bitboard_dict["King"][0]))
-        move_dict = self.move_dict[0]
-        for origin in move_dict.keys():
-            for to in move_dict[origin]:
-                if to == king_origin:
-                    return False
-        return True
+            piece, origin, to, promote_key = move
+            promote = True
+        files = "ABCDEFGH"
+        origin_file = str(files[origin//8])
+        origin_rank = str(origin % 8)
+        to_file = str(files[to//8])
+        to_rank = str(to % 8)
+        if promote:
+            return (piece, origin_file+origin_rank, to_file+to_rank)
+        else:
+            return (piece, origin_file+origin_rank, to_file+to_rank+promote_key)
     
     @property
     def legal_move_dict(self):

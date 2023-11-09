@@ -90,11 +90,9 @@ class Engine:
             "KING" : KING_POSITIONAL_WEIGHT
         }
         self.bitboard_object = bitboard_object
-        self.extending = True
-        self.origin_pointer = 0
-        self.move_pointer = 0
         self.current_time = 0
         self.current_best_eval = 0
+        self.done = False
     @property
     def material_advantage(self):
         d_material = 0
@@ -190,228 +188,205 @@ class Engine:
         return w_advantage, d_advantage
     
     def min_max_dict(self, max_time,
-                      current_depth=0, current_evaluation_move=[], ordered_eval=[],
+                      current_depth=0,
                       current_colour="WHITE", current_moves=0, current_key_index=0, current_origin_list=0,
                       move_evaluation={}, applied_moves=[], evaluation_move={}):
+        
+        def simulate_next_move(max_time, current_depth, current_colour, move_evaluation, applied_moves, bitboard_object, current_best_eval):
+            search_eval, search_move = current_min_max(move_evaluation, current_colour)
+            if abs(search_eval) == math.inf:
+                self.done = True
+            captured = bitboard_object.apply_move(search_move)
+            applied_moves.append(search_move)
+            if current_colour == "WHITE":
+                new_colour = "BLACK"
+            else:
+                new_colour = "WHITE"
+            
+            new_moves, new_key_index, new_origin_list = get_moves_key_origin(bitboard_object, new_colour)
+            move_evaluation[search_move] = {}
+            move_evaluation[search_move] = self.min_max_dict(
+                        max_time,
+                        current_depth + 1,
+                        new_colour, new_moves, new_key_index, new_origin_list,
+                        move_evaluation[search_move], applied_moves)[0]
+            if move_evaluation[search_move] == {}:
+                if not(bitboard_object.king_safe(False)) and current_colour == "WHITE":
+                    move_evaluation[search_move] = -math.inf
+                elif not(bitboard_object.king_safe()) and current_colour == "BLACK":
+                    move_evaluation[search_move] = math.inf
+            current_best_eval = current_min_max(move_evaluation, current_colour)[0]
+            move = applied_moves.pop()
+            bitboard_object.revert_move(move, captured)
+            return move_evaluation, current_best_eval
+        
+        def get_moves_key_origin(bitboard_object, colour):
+            if colour == "WHITE":
+                move_colour_index = 0
+            else:
+                move_colour_index = 1
+            moves, key  = bitboard_object.split_move_dict[move_colour_index]
+            origin_list = list(moves.keys())
+            return moves, key, origin_list
+        
+        def current_min_max(move_evaluation, current_colour):
+            if current_colour == "WHITE":
+                min_max = -math.inf
+                next_colour = "BLACK"
+            else:
+                min_max = math.inf
+                next_colour = "WHITE"
+            for move in move_evaluation.keys():
+                if type(move_evaluation[move]) is float or type(move_evaluation[move]) is int:
+                    evaluation = move_evaluation[move]
+                else:
+                    evaluation = current_min_max(move_evaluation[move], next_colour)[0]
+                if current_colour == "WHITE":
+                    if evaluation >= min_max:
+                        min_max = evaluation
+                        min_max_move = move
+                else:
+                    if evaluation <= min_max:
+                        min_max = evaluation
+                        min_max_move = move
+            return min_max, min_max_move
+        
+        def is_current_best(move_evaluation, current_colour, current_depth, current_best_eval):
+            if len(move_evaluation) == 0:
+                return False, current_best_eval
+            if current_depth % 2 == 1:
+                if current_colour == "WHITE":
+                    original_colour = "BLACK"
+                else:
+                    original_colour = "WHITE"
+            else:
+                original_colour = current_colour
+            min_max = current_min_max(move_evaluation, current_colour)[0]
+            if original_colour == "WHITE" and min_max >= current_best_eval:
+                current_best_eval = min_max
+                return True, current_best_eval
+            elif original_colour == "BLACK" and min_max <= current_best_eval:
+                current_best_eval = min_max
+                return True, current_best_eval
+            else:
+                return False, current_best_eval
+        
+        def remove_overlappying_moves(evaluation_move, applied_moves):
+            del_list = []
+            for eval in evaluation_move.keys():
+                for index, move in enumerate(evaluation_move[eval]):
+                    apply_move_list = []
+                    for apply_move in applied_moves:
+                        apply_move_list.append(apply_move)
+                    if move == apply_move_list:
+                        del_list.append((eval, index))
+            backpush = 0
+            deleted_eval = []
+            for eval, index in del_list:
+                if index-backpush >= 0 and not(eval in deleted_eval):
+                    del evaluation_move[eval][index-backpush]
+                    backpush += 1
+                if index-backpush < 0 and not(eval in deleted_eval):
+                    deleted_eval.append(eval)
+                    del evaluation_move[eval]
+            return evaluation_move
+        
+        def moves_to_current(applied_moves, applied_move=0):
+            moves_to_current = []
+            for move in applied_moves:
+                moves_to_current.append(move)
+            if applied_move != 0:
+                moves_to_current.append(applied_move)
+            return moves_to_current
+        
         if self.current_time == 0:
-            current_moves, current_key_index, current_origin_list = self.get_moves_key_origin(self.bitboard_object, current_colour)
+            current_moves, current_key_index, current_origin_list = get_moves_key_origin(self.bitboard_object, current_colour)
             if current_colour == "WHITE":
                 self.current_best_eval = -math.inf
             else:
                 self.current_best_eval = math.inf
-        if max_time < self.current_time:
-            return move_evaluation, evaluation_move
-        applied_origin = current_origin_list[self.origin_pointer]
-        self.current_time += 1
-        if type(move_evaluation) is float:
-            return move_evaluation, evaluation_move
-        elif not(self.extending) and not(self.is_current_best(move_evaluation, current_colour, current_depth)):
-            return move_evaluation, evaluation_move
-        if self.extending:
-            looping = True
-            for name_key in current_key_index:
-                for list_index in range(len(current_key_index[name_key])):
-                    if current_key_index[name_key][list_index] == applied_origin:
-                        applied_piece_key = name_key
-                        looping = False
+                
+        for applied_origin in current_origin_list:
+            for applied_to in current_moves[applied_origin]:
+                self.current_time += 1
+                looping = True
+                for name_key in current_key_index:
+                    for list_index in range(len(current_key_index[name_key])):
+                        if current_key_index[name_key][list_index] == applied_origin:
+                            applied_piece_key = name_key
+                            looping = False
+                            break
+                    if not(looping):
                         break
-                if not(looping):
-                    break
-            if self.move_pointer < len(current_moves[applied_origin]):
-                if type(current_moves[applied_origin][self.move_pointer]) is int:
-                    applied_to = current_moves[applied_origin][self.move_pointer]
+                if type(applied_to) is int:
                     applied_move = (applied_piece_key, applied_origin, applied_to)
                 else:
-                    applied_to, promote_key = current_moves[applied_origin][self.move_pointer]
+                    applied_to, promote_key = applied_to
                     applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
-                
+                    
                 captured = self.bitboard_object.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
                 move_evaluation[applied_move] = w_evaluation - d_evaluation
                 
                 if w_evaluation - d_evaluation not in evaluation_move.keys():
                     evaluation_move[w_evaluation-d_evaluation] = []
-                evaluation_move[w_evaluation-d_evaluation].append(self.moves_to_current(applied_moves, applied_move))
-                evaluation_move = self.remove_overlappying_moves(evaluation_move, applied_moves)
+                evaluation_move[w_evaluation-d_evaluation].append(moves_to_current(applied_moves, applied_move))
+                evaluation_move = remove_overlappying_moves(evaluation_move, applied_moves)
                 
                 self.bitboard_object.revert_move(applied_move, captured)
                 
-            move_evaluation = self.iterate_min_max(current_moves, current_origin_list, move_evaluation, applied_origin)
-        else:
-            move_evaluation = self.simulate_next_move(max_time, current_depth, current_colour, move_evaluation, applied_moves)
+        while True:
+            best, self.current_best_eval = is_current_best(move_evaluation, current_colour, current_depth, self.current_best_eval)
+            if max_time < self.current_time or self.done:
+                return move_evaluation, evaluation_move
+            elif best:
+                move_evaluation, self.current_best_eval = simulate_next_move(max_time, current_depth, current_colour, move_evaluation, applied_moves, self.bitboard_object, self.current_best_eval)
+            else:
+                return move_evaluation, evaluation_move
+    
+    """maybe for vaiable difficulty... def order_eval_list(self, evaluation_move):
         
-        return self.min_max_dict(
-            max_time,
-            current_depth, current_evaluation_move, ordered_eval,
-            current_colour, current_moves, current_key_index, current_origin_list,
-            move_evaluation, applied_moves, evaluation_move)
+        def merge_sort(self, list):
             
-    def iterate_min_max(self, current_moves, current_origin_list, move_evaluation, applied_origin):
-        if self.move_pointer + 1 >= len(current_moves[applied_origin]):
-            self.move_pointer = 0
-            if self.origin_pointer + 1 >= len(current_origin_list):
-                self.origin_pointer = 0
-                self.extending = False
-            else:
-                self.origin_pointer += 1
-        else:
-            self.move_pointer += 1
-        return move_evaluation
-    
-    def simulate_next_move(self, max_time, current_depth, current_colour, move_evaluation, applied_moves):
-        search_move = self.current_min_max(move_evaluation, current_colour)[1]
-        captured = self.bitboard_object.apply_move(search_move)
-        applied_moves.append(search_move)
-        if current_colour == "WHITE":
-            new_colour = "BLACK"
-        else:
-            new_colour = "WHITE"
-            
-        
-        if not(self.bitboard_object.king_safe()) and current_colour == "WHITE":
-            move_evaluation[search_move] = -math.inf
-        elif not(self.bitboard_object.king_safe(False)) and current_colour == "BLACK":
-            move_evaluation[search_move] = math.inf
-        elif move_evaluation[search_move] == {}:
-            move_evaluation[search_move] = 0
-        else:
-            self.extending = True
-            new_moves, new_key_index, new_origin_list = self.get_moves_key_origin(self.bitboard_object, new_colour)
-            move_evaluation[search_move] = {}
-            move_evaluation[search_move] = self.min_max_dict(
-                        max_time,
-                        current_depth + 1, [], [],
-                        new_colour, new_moves, new_key_index, new_origin_list,
-                        move_evaluation[search_move], applied_moves)[0]
-            self.extending = False
-        self.current_best_eval = self.current_min_max(move_evaluation, current_colour)[0]
-        move = applied_moves.pop()
-        self.bitboard_object.revert_move(move, captured)
-        return move_evaluation
-
-    def is_current_best(self, move_evaluation, current_colour, current_depth):
-        if not(len(move_evaluation) > 0):
-            return True
-        if current_depth % 2 == 1:
-            if current_colour == "WHITE":
-                original_colour = "BLACK"
-            else:
-                original_colour = "WHITE"
-        else:
-            original_colour = current_colour
-        min_max = self.current_min_max(move_evaluation, current_colour)[0]
-        if original_colour == "WHITE" and min_max >= self.current_best_eval:
-            self.current_best_eval = min_max
-            return True
-        elif original_colour == "BLACK" and min_max <= self.current_best_eval:
-            self.current_best_eval = min_max
-            return True
-        else:
-            return False
-        
-    def current_min_max(self, move_evaluation, current_colour):
-        if current_colour == "WHITE":
-            min_max = -math.inf
-            next_colour = "BLACK"
-        else:
-            min_max = math.inf
-            next_colour = "WHITE"
-        for move in move_evaluation.keys():
-            if type(move_evaluation[move]) is float or type(move_evaluation[move]) is int:
-                evaluation = move_evaluation[move]
-            elif type(move_evaluation[move]) is dict:
-                evaluation = self.current_min_max(move_evaluation[move], next_colour)[0]
-            if current_colour == "WHITE":
-                if evaluation >= min_max:
-                    min_max = evaluation
-                    min_max_move = move
-            else:
-                if evaluation <= min_max:
-                    min_max = evaluation
-                    min_max_move = move
-        return min_max, min_max_move
-
-    def remove_overlappying_moves(self, evaluation_move, applied_moves):
-        del_list = []
-        for eval in evaluation_move.keys():
-            for index, move in enumerate(evaluation_move[eval]):
-                apply_move_list = []
-                for apply_move in applied_moves:
-                    apply_move_list.append(apply_move)
-                if move == apply_move_list:
-                    del_list.append((eval, index))
-        backpush = 0
-        deleted_eval = []
-        for eval, index in del_list:
-            if index-backpush >= 0 and not(eval in deleted_eval):
-                del evaluation_move[eval][index-backpush]
-                backpush += 1
-            if index-backpush < 0 and not(eval in deleted_eval):
-                deleted_eval.append(eval)
-                del evaluation_move[eval]
-        return evaluation_move
-    
-    def moves_to_current(self, applied_moves, applied_move=0):
-        moves_to_current = []
-        for move in applied_moves:
-            moves_to_current.append(move)
-        if applied_move != 0:
-            moves_to_current.append(applied_move)
-        return moves_to_current
-    
-    def order_eval_list(self, evaluation_move):
-        eval_list = list(evaluation_move.keys())
-        return self.merge_sort(eval_list)
-    
-    def merge_sort(self, list):
-        if len(list) > 1:
-            mid = len(list) // 2
-            left = list[:mid]
-            right = list[mid:]
-            
-            self.merge_sort(left)
-            self.merge_sort(right)
-            
-            list = self.compare(list, left, right)
-            
-        return list
-    
-    def compare(self, list, left, right, left_pointer=0, right_pointer=0, list_pointer=0):
-        if left_pointer  >= len(left) or right_pointer >= len(right):
-            if left_pointer < len(left):
-                list[list_pointer] = left[left_pointer]
-                list = self.compare(list, left, right, left_pointer+1, right_pointer, list_pointer+1)
-            elif right_pointer < len(right):
-                list[list_pointer] = right[right_pointer]
-                list = self.compare(list, left, right, left_pointer, right_pointer+1, list_pointer+1)
-            else:
+            def compare(list, left, right, left_pointer=0, right_pointer=0, list_pointer=0):
+                if left_pointer  >= len(left) or right_pointer >= len(right):
+                    if left_pointer < len(left):
+                        list[list_pointer] = left[left_pointer]
+                        list = self.compare(list, left, right, left_pointer+1, right_pointer, list_pointer+1)
+                    elif right_pointer < len(right):
+                        list[list_pointer] = right[right_pointer]
+                        list = self.compare(list, left, right, left_pointer, right_pointer+1, list_pointer+1)
+                    else:
+                        return list
+                else:
+                    if left[left_pointer] < right[right_pointer]:
+                        list[list_pointer] = left[left_pointer]
+                        list = self.compare(list, left, right, left_pointer+1, right_pointer, list_pointer+1)
+                    else:
+                        list[list_pointer] = right[right_pointer]
+                        list = self.compare(list, left, right, left_pointer, right_pointer+1, list_pointer+1)
                 return list
-        else:
-            if left[left_pointer] < right[right_pointer]:
-                list[list_pointer] = left[left_pointer]
-                list = self.compare(list, left, right, left_pointer+1, right_pointer, list_pointer+1)
-            else:
-                list[list_pointer] = right[right_pointer]
-                list = self.compare(list, left, right, left_pointer, right_pointer+1, list_pointer+1)
-        return list
-    
-    def get_moves_key_origin(self, position, colour):
-        if colour == "WHITE":
-            move_colour_index = 0
-        else:
-            move_colour_index = 1
-        moves, key  = position.split_move_dict[move_colour_index]
-        origin_list = list(moves.keys())
-        return moves, key, origin_list
-    
+            
+            if len(list) > 1:
+                mid = len(list) // 2
+                left = list[:mid]
+                right = list[mid:]
+                
+                self.merge_sort(left)
+                self.merge_sort(right)
+                
+                list = compare(list, left, right)
+                
+            return list
+        
+        eval_list = list(evaluation_move.keys())
+        return merge_sort(eval_list)"""
+        
 if __name__ == "__main__":
-    board = ".............k.........p...P.P........P.P..p...P.P...P........K."
-    ic(len(board))
+    board = ".................P.....PK..R....p.Pp..p........p......p...r...k."
     bitBoard = bitboard.IBitBoard(board)
     bitBoard.output_board_formatted()
     engine = Engine(bitBoard)
     max_time = int(input("Enter max time: "))
-    move_evaluation, evaluation_move = engine.min_max_dict(max_time, current_colour="WHITE")
-    ic(move_evaluation)
-    ic(engine.current_min_max(move_evaluation, "WHITE"))
-    
+    move_evaluation, evaluation_move = engine.min_max_dict(max_time, current_colour="BLACK")
+    ic(engine.min_max_dict.current_min_max(move_evaluation, "BLACK"))
