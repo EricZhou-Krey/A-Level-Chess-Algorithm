@@ -338,7 +338,7 @@ class IBitBoard(IPiece):
                 print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
     
-    def display_move(self, move):
+    def output_move(self, move):
         if len(move) == 3:
             piece, origin, to = move
             promote = False
@@ -351,9 +351,9 @@ class IBitBoard(IPiece):
         to_file = str(files[to//8])
         to_rank = str(to % 8)
         if promote:
-            return (piece, origin_file+origin_rank, to_file+to_rank)
+            return (piece, origin_file+origin_rank, to_file+to_rank, promote_key)
         else:
-            return (piece, origin_file+origin_rank, to_file+to_rank+promote_key)
+            return (piece, origin_file+origin_rank, to_file+to_rank)
     
     @property
     def legal_move_dict(self):
@@ -467,4 +467,4 @@ if __name__ == "__main__":
     #board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
     board = ".............k.....r...p...R.P......P.P.P..p...P.P...P........K."
     bitBoard = IBitBoard(board)
-    ic(bitBoard.legal_move_dict)
+    ic(bitBoard.bitboard_dict)

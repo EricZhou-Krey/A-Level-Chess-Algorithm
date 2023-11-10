@@ -90,6 +90,7 @@ class Engine:
             "KING" : KING_POSITIONAL_WEIGHT
         }
         self.bitboard_object = bitboard_object
+        self.max_time = 0
         self.current_time = 0
         self.current_best_eval = 0
         self.done = False
@@ -186,13 +187,13 @@ class Engine:
         w_advantage = w_strategical + w_positional + w_material
         d_advantage = d_strategical + d_positional + d_material
         return w_advantage, d_advantage
-    
-    def min_max_dict(self, max_time,
+
+    def min_max_dict(self,
                       current_depth=0,
                       current_colour="WHITE", current_moves=0, current_key_index=0, current_origin_list=0,
                       move_evaluation={}, applied_moves=[], evaluation_move={}):
         
-        def simulate_next_move(max_time, current_depth, current_colour, move_evaluation, applied_moves, bitboard_object, current_best_eval):
+        def simulate_next_move(current_depth, current_colour, move_evaluation, applied_moves, bitboard_object, current_best_eval):
             search_eval, search_move = current_min_max(move_evaluation, current_colour)
             if abs(search_eval) == math.inf:
                 self.done = True
@@ -206,7 +207,6 @@ class Engine:
             new_moves, new_key_index, new_origin_list = get_moves_key_origin(bitboard_object, new_colour)
             move_evaluation[search_move] = {}
             move_evaluation[search_move] = self.min_max_dict(
-                        max_time,
                         current_depth + 1,
                         new_colour, new_moves, new_key_index, new_origin_list,
                         move_evaluation[search_move], applied_moves)[0]
@@ -309,6 +309,7 @@ class Engine:
         for applied_origin in current_origin_list:
             for applied_to in current_moves[applied_origin]:
                 self.current_time += 1
+                print(self.current_time)
                 looping = True
                 for name_key in current_key_index:
                     for list_index in range(len(current_key_index[name_key])):
@@ -337,13 +338,60 @@ class Engine:
                 
         while True:
             best, self.current_best_eval = is_current_best(move_evaluation, current_colour, current_depth, self.current_best_eval)
-            if max_time < self.current_time or self.done:
+            if self.max_time < self.current_time or self.done:
                 return move_evaluation, evaluation_move
             elif best:
-                move_evaluation, self.current_best_eval = simulate_next_move(max_time, current_depth, current_colour, move_evaluation, applied_moves, self.bitboard_object, self.current_best_eval)
+                move_evaluation, self.current_best_eval = simulate_next_move(current_depth, current_colour, move_evaluation, applied_moves, self.bitboard_object, self.current_best_eval)
             else:
                 return move_evaluation, evaluation_move
     
+    def best_moves(self, move_evaluation, current_colour="WHITE", most_length=999, arrays=10, least_length=0):
+        
+        def current_min_max(move_evaluation, current_colour):
+            if current_colour == "WHITE":
+                min_max = -math.inf
+                next_colour = "BLACK"
+            else:
+                min_max = math.inf
+                next_colour = "WHITE"
+            for move in move_evaluation.keys():
+                if type(move_evaluation[move]) is float or type(move_evaluation[move]) is int:
+                    evaluation = move_evaluation[move]
+                else:
+                    evaluation = current_min_max(move_evaluation[move], next_colour)[0]
+                if current_colour == "WHITE":
+                    if evaluation >= min_max:
+                        min_max = evaluation
+                        min_max_move = move
+                else:
+                    if evaluation <= min_max:
+                        min_max = evaluation
+                        min_max_move = move
+            return min_max, min_max_move
+        
+        def remove_searched(move_evaluation, result, pointer=0):
+            if pointer + 1 == len(result):
+                del move_evaluation[result[pointer]]
+            else:
+                move_evaluation[result[pointer]] = remove_searched(move_evaluation[result[pointer]], result, pointer+1)
+            return move_evaluation
+        
+        best_moves = []
+        while len(best_moves) < arrays:
+            result = []
+            temp_move_eval = move_evaluation
+            for depth in range(most_length):
+                move = current_min_max(temp_move_eval, current_colour)[1]
+                result.append(move)
+                if type(temp_move_eval[move]) is dict:
+                    temp_move_eval = temp_move_eval[move]
+                else:
+                    break
+            if least_length <= len(result):
+                best_moves.append(result)
+            move_evaluation = remove_searched(move_evaluation, result)
+        return best_moves
+        
     """maybe for vaiable difficulty... def order_eval_list(self, evaluation_move):
         
         def merge_sort(self, list):
@@ -387,6 +435,6 @@ if __name__ == "__main__":
     bitBoard = bitboard.IBitBoard(board)
     bitBoard.output_board_formatted()
     engine = Engine(bitBoard)
-    max_time = int(input("Enter max time: "))
-    move_evaluation, evaluation_move = engine.min_max_dict(max_time, current_colour="BLACK")
-    ic(engine.min_max_dict.current_min_max(move_evaluation, "BLACK"))
+    engine.max_time = int(input("Enter max time: "))
+    move_evaluation, evaluation_move = engine.min_max_dict()
+    ic(engine.best_moves(move_evaluation, "WHITE"))
