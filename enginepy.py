@@ -1,7 +1,7 @@
 import bitboard, time, math
 from icecream import ic
 class Engine:
-    def __init__(self, bitboard_object, PAWN_MATERIAL_WEIGHT=1, BISHOP_MATERIAL_WEIGHT=3, KNIGHT_MATERIAL_WEIGHT=3, ROOK_WIEGHT=5, QUEEN_MATERIAL_WEIGHT=10,
+    def __init__(self, bitboard_object, PAWN_MATERIAL_WEIGHT=10, BISHOP_MATERIAL_WEIGHT=30, KNIGHT_MATERIAL_WEIGHT=30, ROOK_WIEGHT=50, QUEEN_MATERIAL_WEIGHT=100,
                 #POSITIONAL_WEIGHT - indexed from 0-63, a1 to h8
                 WPAWN_POSITIONAL_WEIGHT = [
                      0,0,0,0,0,0,0,0,
@@ -93,6 +93,7 @@ class Engine:
         self.max_time = 0
         self.current_time = 0
         self.current_best_eval = None
+        self.highest_depth = 0
         self.done = False
     @property
     def material_advantage(self):
@@ -189,7 +190,7 @@ class Engine:
         return w_advantage, d_advantage
 
     def min_max_dict(self,
-                      current_depth=0, previous_eval=0,
+                      current_depth=0,
                       current_colour="WHITE", current_moves=None, current_key_index=None, current_origin_list=None,
                       move_evaluation={}, applied_moves=[], evaluation_move={}):
         
@@ -206,16 +207,16 @@ class Engine:
             new_moves, new_key_index, new_origin_list = get_moves_key_origin(bitboard_object, new_colour)
             move_evaluation[search_move] = {}
             move_evaluation[search_move] = self.min_max_dict(
-                        current_depth + 1, search_eval,
+                        current_depth + 1,
                         new_colour, new_moves, new_key_index, new_origin_list,
                         move_evaluation[search_move], applied_moves)[0]
-            
             if move_evaluation[search_move] == {}:
                 if not(bitboard_object.king_safe(False)) and current_colour == "WHITE":
                     move_evaluation[search_move] = -math.inf
                 elif not(bitboard_object.king_safe()) and current_colour == "BLACK":
                     move_evaluation[search_move] = math.inf
-                    
+                else:
+                    move_evaluation[search_move] = 0.0
             current_best_eval = current_min_max(move_evaluation, current_colour)[0]
             move = applied_moves.pop()
             bitboard_object.revert_move(move, captured)
@@ -301,7 +302,10 @@ class Engine:
             if applied_move != 0:
                 moves_to_current.append(applied_move)
             return moves_to_current
-
+        
+        if current_depth > self.highest_depth:
+            self.highest_depth = current_depth
+            
         if self.current_time == 0:
             current_moves, current_key_index, current_origin_list = get_moves_key_origin(self.bitboard_object, current_colour)
             if current_colour == "WHITE":
@@ -329,7 +333,7 @@ class Engine:
                     
                 captured = self.bitboard_object.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
-                sum_eval = (w_evaluation - d_evaluation + previous_eval) / 2
+                sum_eval = float(w_evaluation - d_evaluation)
                 move_evaluation[applied_move] = sum_eval
                 
                 if sum_eval not in evaluation_move.keys():
@@ -348,7 +352,7 @@ class Engine:
             else:
                 return move_evaluation, evaluation_move
     
-    def best_moves(self, move_evaluation, current_colour="WHITE", most_length=999, arrays=3, least_length=2):
+    def best_moves(self, move_evaluation, current_colour="WHITE", max_length=999, arrays=3, min_length=2):
         
         def current_min_max(move_evaluation, current_colour):
             if current_colour == "WHITE":
@@ -375,16 +379,20 @@ class Engine:
         def remove_searched(move_evaluation, result, pointer=0):
             if pointer + 1 == len(result):
                 del move_evaluation[result[pointer]]
+                if len(move_evaluation) == 0:
+                    return None
             else:
                 move_evaluation[result[pointer]] = remove_searched(move_evaluation[result[pointer]], result, pointer+1)
+                if move_evaluation[result[pointer]] == None:
+                    del move_evaluation[result[pointer]]
             return move_evaluation
         
         best_moves = []
         while len(best_moves) < arrays:
             result = []
             temp_move_eval = move_evaluation
-            for depth in range(most_length):
-                eval, move = current_min_max(temp_move_eval, current_colour)
+            eval, move = current_min_max(temp_move_eval, current_colour)
+            for depth in range(max_length):
                 result.append(move)
                 if type(temp_move_eval[move]) is dict:
                     temp_move_eval = temp_move_eval[move]
@@ -394,16 +402,17 @@ class Engine:
                         current_colour = "WHITE"
                 else:
                     break
-            if least_length <= len(result):
-                best_moves.append(result)
+                move = current_min_max(temp_move_eval, current_colour)[1]
+            if min_length <= len(result):
+                best_moves.append((eval, result))
             move_evaluation = remove_searched(move_evaluation, result)
         return best_moves
         
 if __name__ == "__main__":
-    board = "r.b.k.nrppp.bppp......q.....N......n......NP....PPPB.PPPR..QKB.R"
+    board = "...rrbk.p..q.pp..p....np..p..N.....pNPP..P.P......P...QP....RRK."
     bitBoard = bitboard.IBitBoard(board)
     bitBoard.output_board_formatted()
     engine = Engine(bitBoard)
     engine.max_time = int(input("Enter max time: "))
-    move_evaluation, evaluation_move = engine.min_max_dict()
-    ic(engine.best_moves(move_evaluation))
+    move_evaluation, evaluation_move = engine.min_max_dict(current_colour="BLACK")
+    ic(move_evaluation, engine.best_moves(move_evaluation, "BLACK", min_length=engine.highest_depth))

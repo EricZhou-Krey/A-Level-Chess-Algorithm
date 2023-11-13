@@ -346,10 +346,10 @@ class IBitBoard(IPiece):
             piece, origin, to, promote_key = move
             promote = True
         files = "ABCDEFGH"
-        origin_file = str(files[origin//8])
-        origin_rank = str(origin % 8)
-        to_file = str(files[to//8])
-        to_rank = str(to % 8)
+        origin_rank = str((origin//8) + 1)
+        origin_file = str(files[origin%8])
+        to_rank = str((to//8) + 1)
+        to_file = str(files[to%8])
         if promote:
             return (piece, origin_file+origin_rank, to_file+to_rank, promote_key)
         else:
