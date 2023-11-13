@@ -19,9 +19,11 @@ class PyGameWindow:
             self.whileDrawing()
             pygame.display.flip()
         pygame.quit()
+        
 class Interface(PyGameWindow):
     def __init__(self, window_size, caption):
         super().__init__(window_size, caption)     
+
 class ChessBoard(Interface):
     def __init__(self, window_size, caption, tile_size):
         super().__init__(window_size, caption)

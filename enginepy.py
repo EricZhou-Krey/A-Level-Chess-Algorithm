@@ -352,7 +352,7 @@ class Engine:
             else:
                 return move_evaluation, evaluation_move
     
-    def best_moves(self, move_evaluation, current_colour="WHITE", max_length=999, arrays=3, min_length=2):
+    def best_moves(self, move_evaluation:dict, current_colour="WHITE", max_length=999, arrays=3, min_length=2):
         
         def current_min_max(move_evaluation, current_colour):
             if current_colour == "WHITE":
@@ -415,4 +415,4 @@ if __name__ == "__main__":
     engine = Engine(bitBoard)
     engine.max_time = int(input("Enter max time: "))
     move_evaluation, evaluation_move = engine.min_max_dict(current_colour="BLACK")
-    ic(move_evaluation, engine.best_moves(move_evaluation, "BLACK", min_length=engine.highest_depth))
+    ic(move_evaluation, engine.best_moves(move_evaluation, "BLACK", arrays=1, min_length=engine.highest_depth))

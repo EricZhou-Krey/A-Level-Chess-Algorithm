@@ -159,7 +159,7 @@ class IPiece():
         return move
          
 class IBitBoard(IPiece):
-    def __init__(self, notationBoard): #lowercase = white, Uppercase = black
+    def __init__(self, notationBoard:str): #lowercase = white, Uppercase = black
         
         def init_bitboard(index_board):
             self.bitboard_dict = {
