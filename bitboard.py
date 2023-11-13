@@ -1,7 +1,8 @@
-import math, time
+import math
 from icecream import ic
     
 class IPiece():
+    
     def __init__(self):
         def init_edge():
             self.file_edge_index = {
@@ -25,7 +26,7 @@ class IPiece():
                 "8" : self.index_board_to_uint64(self.file_edge_index["8"]),
             }
         init_edge()
-    
+
     def index_board_to_uint64(self, index_array):
             bitBoard = int()
             for index in index_array:

@@ -1,4 +1,4 @@
-import bitboard, time, math
+import bitboard, math
 from icecream import ic
 class Engine:
     def __init__(self, bitboard_object, PAWN_MATERIAL_WEIGHT=10, BISHOP_MATERIAL_WEIGHT=30, KNIGHT_MATERIAL_WEIGHT=30, ROOK_WIEGHT=50, QUEEN_MATERIAL_WEIGHT=100,
@@ -407,7 +407,7 @@ class Engine:
                 best_moves.append((eval, result))
             move_evaluation = remove_searched(move_evaluation, result)
         return best_moves
-        
+
 if __name__ == "__main__":
     board = "...rrbk.p..q.pp..p....np..p..N.....pNPP..P.P......P...QP....RRK."
     bitBoard = bitboard.IBitBoard(board)
