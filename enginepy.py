@@ -90,83 +90,84 @@ class Engine:
             "KING" : KING_POSITIONAL_WEIGHT
         }
         self.bitboard_object = bitboard_object
-        self.max_time = 0
+        self.max_time = math.inf
         self.current_time = 0
+        self.max_depth = math.inf
+        self.longest_current_move = 0
         self.current_best_eval = None
-        self.highest_depth = 0
-        self.done = False
     @property
     def material_advantage(self):
         d_material = 0
         w_material = 0
         for key in self.bitboard_object.bitboard_dict.keys():
-            for board in self.bitboard_object.bitboard_dict[key]:
-                match key:
-                    case "pawn":
-                        w_material += self.PIECE_MATERIAL_WEIGHT["PAWN"]
-                    case "bishop":
-                        w_material += self.PIECE_MATERIAL_WEIGHT["BISHOP"]
-                    case "knight":
-                        w_material += self.PIECE_MATERIAL_WEIGHT["KNIGHT"]
-                    case "rook":
-                        w_material += self.PIECE_MATERIAL_WEIGHT["ROOK"]
-                    case "queen":
-                        w_material += self.PIECE_MATERIAL_WEIGHT["QUEEN"]
-                    case "Pawn":
-                        d_material += self.PIECE_MATERIAL_WEIGHT["PAWN"]
-                    case "Bishop":
-                        d_material += self.PIECE_MATERIAL_WEIGHT["BISHOP"]
-                    case "Knight":
-                        d_material += self.PIECE_MATERIAL_WEIGHT["KNIGHT"]
-                    case "Rook":
-                        d_material += self.PIECE_MATERIAL_WEIGHT["ROOK"]
-                    case "Queen":
-                        d_material += self.PIECE_MATERIAL_WEIGHT["QUEEN"]
+            for index, bit in enumerate(str(format(self.bitboard_object.bitboard_dict[key], "064b"))[::-1]):
+                if int(bit) == 1:
+                    match key:
+                        case "pawn":
+                            w_material += self.PIECE_MATERIAL_WEIGHT["PAWN"]
+                        case "bishop":
+                            w_material += self.PIECE_MATERIAL_WEIGHT["BISHOP"]
+                        case "knight":
+                            w_material += self.PIECE_MATERIAL_WEIGHT["KNIGHT"]
+                        case "rook":
+                            w_material += self.PIECE_MATERIAL_WEIGHT["ROOK"]
+                        case "queen":
+                            w_material += self.PIECE_MATERIAL_WEIGHT["QUEEN"]
+                        case "Pawn":
+                            d_material += self.PIECE_MATERIAL_WEIGHT["PAWN"]
+                        case "Bishop":
+                            d_material += self.PIECE_MATERIAL_WEIGHT["BISHOP"]
+                        case "Knight":
+                            d_material += self.PIECE_MATERIAL_WEIGHT["KNIGHT"]
+                        case "Rook":
+                            d_material += self.PIECE_MATERIAL_WEIGHT["ROOK"]
+                        case "Queen":
+                            d_material += self.PIECE_MATERIAL_WEIGHT["QUEEN"]
         return w_material, d_material
     @property
     def positional_advantage(self):
         w_positional = 0
         d_positional = 0
         for key in self.bitboard_object.bitboard_dict.keys():
-            for board in self.bitboard_object.bitboard_dict[key]:
-                board_index = int(math.log2(board))
-                match key:
-                    case "pawn":
-                        w_positional += self.POSITIONAL_WEIGHT["WPAWN"][board_index]
-                        break
-                    case "bishop":
-                        w_positional += self.POSITIONAL_WEIGHT["BISHOP"][board_index]
-                        break
-                    case "knight":
-                        w_positional += self.POSITIONAL_WEIGHT["KNIGHT"][board_index]
-                        break
-                    case "rook":
-                        w_positional += self.POSITIONAL_WEIGHT["ROOK"][board_index]
-                        break
-                    case "queen":
-                        w_positional += self.POSITIONAL_WEIGHT["QUEEN"][board_index]
-                        break
-                    case "king":
-                        w_positional += self.POSITIONAL_WEIGHT["KING"][board_index]
-                        break
-                    case "Pawn":
-                        d_positional += self.POSITIONAL_WEIGHT["DPAWN"][board_index]
-                        break
-                    case "Bishop":
-                        d_positional += self.POSITIONAL_WEIGHT["BISHOP"][board_index]
-                        break
-                    case "Knight":
-                        d_positional += self.POSITIONAL_WEIGHT["KNIGHT"][board_index]
-                        break
-                    case "Rook":
-                        d_positional += self.POSITIONAL_WEIGHT["ROOK"][board_index]
-                        break
-                    case "Queen":
-                        d_positional += self.POSITIONAL_WEIGHT["QUEEN"][board_index]
-                        break
-                    case "King":
-                        d_positional += self.POSITIONAL_WEIGHT["KING"][board_index]
-                        break
+            for board_index, bit in enumerate(str(format(self.bitboard_object.bitboard_dict[key], "064b"))[::-1]):
+                if int(bit) == 1:
+                    match key:
+                        case "pawn":
+                            w_positional += self.POSITIONAL_WEIGHT["WPAWN"][board_index]
+                            break
+                        case "bishop":
+                            w_positional += self.POSITIONAL_WEIGHT["BISHOP"][board_index]
+                            break
+                        case "knight":
+                            w_positional += self.POSITIONAL_WEIGHT["KNIGHT"][board_index]
+                            break
+                        case "rook":
+                            w_positional += self.POSITIONAL_WEIGHT["ROOK"][board_index]
+                            break
+                        case "queen":
+                            w_positional += self.POSITIONAL_WEIGHT["QUEEN"][board_index]
+                            break
+                        case "king":
+                            w_positional += self.POSITIONAL_WEIGHT["KING"][board_index]
+                            break
+                        case "Pawn":
+                            d_positional += self.POSITIONAL_WEIGHT["DPAWN"][board_index]
+                            break
+                        case "Bishop":
+                            d_positional += self.POSITIONAL_WEIGHT["BISHOP"][board_index]
+                            break
+                        case "Knight":
+                            d_positional += self.POSITIONAL_WEIGHT["KNIGHT"][board_index]
+                            break
+                        case "Rook":
+                            d_positional += self.POSITIONAL_WEIGHT["ROOK"][board_index]
+                            break
+                        case "Queen":
+                            d_positional += self.POSITIONAL_WEIGHT["QUEEN"][board_index]
+                            break
+                        case "King":
+                            d_positional += self.POSITIONAL_WEIGHT["KING"][board_index]
+                            break
         return w_positional, d_positional
     @property
     def strategical_advantage(self):
@@ -192,12 +193,10 @@ class Engine:
     def min_max_dict(self,
                       current_depth=0,
                       current_colour="WHITE", current_moves=None, current_key_index=None, current_origin_list=None,
-                      move_evaluation={}, applied_moves=[], evaluation_move={}):
+                      move_evaluation={}, applied_moves=[]):
         
         def simulate_next_move(current_depth, current_colour, move_evaluation, applied_moves, bitboard_object, current_best_eval):
-            search_eval, search_move = current_min_max(move_evaluation, current_colour)
-            if abs(search_eval) == math.inf:
-                self.done = True
+            search_move = current_min_max(move_evaluation, current_colour)[1]
             captured = bitboard_object.apply_move(search_move)
             applied_moves.append(search_move)
             if current_colour == "WHITE":
@@ -209,14 +208,8 @@ class Engine:
             move_evaluation[search_move] = self.min_max_dict(
                         current_depth + 1,
                         new_colour, new_moves, new_key_index, new_origin_list,
-                        move_evaluation[search_move], applied_moves)[0]
-            if move_evaluation[search_move] == {}:
-                if not(bitboard_object.king_safe(False)) and current_colour == "WHITE":
-                    move_evaluation[search_move] = -math.inf
-                elif not(bitboard_object.king_safe()) and current_colour == "BLACK":
-                    move_evaluation[search_move] = math.inf
-                else:
-                    move_evaluation[search_move] = 0.0
+                        move_evaluation[search_move], applied_moves)
+            
             current_best_eval = current_min_max(move_evaluation, current_colour)[0]
             move = applied_moves.pop()
             bitboard_object.revert_move(move, captured)
@@ -275,44 +268,24 @@ class Engine:
                 return True, current_best_eval
             return False, current_best_eval
         
-        def remove_overlappying_moves(evaluation_move, applied_moves):
-            del_list = []
-            for eval in evaluation_move.keys():
-                for index, move in enumerate(evaluation_move[eval]):
-                    apply_move_list = []
-                    for apply_move in applied_moves:
-                        apply_move_list.append(apply_move)
-                    if move == apply_move_list:
-                        del_list.append((eval, index))
-            backpush = 0
-            deleted_eval = []
-            for eval, index in del_list:
-                if index-backpush >= 0 and not(eval in deleted_eval):
-                    del evaluation_move[eval][index-backpush]
-                    backpush += 1
-                if index-backpush < 0 and not(eval in deleted_eval):
-                    deleted_eval.append(eval)
-                    del evaluation_move[eval]
-            return evaluation_move
-        
-        def moves_to_current(applied_moves, applied_move=0):
-            moves_to_current = []
-            for move in applied_moves:
-                moves_to_current.append(move)
-            if applied_move != 0:
-                moves_to_current.append(applied_move)
-            return moves_to_current
-        
-        if current_depth > self.highest_depth:
-            self.highest_depth = current_depth
-            
         if self.current_time == 0:
             current_moves, current_key_index, current_origin_list = get_moves_key_origin(self.bitboard_object, current_colour)
             if current_colour == "WHITE":
                 self.current_best_eval = -math.inf
             else:
                 self.current_best_eval = math.inf
-                
+        
+        if len(current_origin_list) == {}:
+            if not(self.bitboard_object.king_safe(False)) and current_colour == "WHITE":
+                return -math.inf
+            elif not(self.bitboard_object.king_safe()) and current_colour == "BLACK":
+                return math.inf
+            else:
+                return 0.0
+        
+        if self.longest_current_move < current_depth:
+            self.longest_current_move = current_depth
+            
         for applied_origin in current_origin_list:
             for applied_to in current_moves[applied_origin]:
                 self.current_time += 1
@@ -336,23 +309,18 @@ class Engine:
                 sum_eval = float(w_evaluation - d_evaluation)
                 move_evaluation[applied_move] = sum_eval
                 
-                if sum_eval not in evaluation_move.keys():
-                    evaluation_move[sum_eval] = []
-                evaluation_move[sum_eval].append(moves_to_current(applied_moves, applied_move))
-                evaluation_move = remove_overlappying_moves(evaluation_move, applied_moves)
-                
                 self.bitboard_object.revert_move(applied_move, captured)
                 
         while True:
             best, self.current_best_eval = is_current_best(move_evaluation, current_colour, current_depth, self.current_best_eval)
-            if self.max_time < self.current_time or self.done:
-                return move_evaluation, evaluation_move
+            if self.max_time < self.current_time or current_depth > self.max_depth:
+                return move_evaluation
             elif best:
                 move_evaluation, self.current_best_eval = simulate_next_move(current_depth, current_colour, move_evaluation, applied_moves, self.bitboard_object, self.current_best_eval)
             else:
-                return move_evaluation, evaluation_move
+                return move_evaluation
     
-    def best_moves(self, move_evaluation:dict, current_colour="WHITE", max_length=999, arrays=3, min_length=2):
+    def best_moves(self, move_evaluation:dict, current_colour="WHITE", max_length=999, arrays=3, min_length=2): #needs effeciency
         
         def current_min_max(move_evaluation, current_colour):
             if current_colour == "WHITE":
@@ -414,5 +382,6 @@ if __name__ == "__main__":
     bitBoard.output_board_formatted()
     engine = Engine(bitBoard)
     engine.max_time = int(input("Enter max time: "))
-    move_evaluation, evaluation_move = engine.min_max_dict(current_colour="BLACK")
-    ic(move_evaluation, engine.best_moves(move_evaluation, "BLACK", arrays=1, min_length=engine.highest_depth))
+    #engine.max_depth = int(input("Enter max depth: "))
+    move_evaluation = engine.min_max_dict(current_colour="BLACK")
+    ic(move_evaluation, engine.best_moves(move_evaluation, "BLACK", arrays=1, min_length=engine.longest_current_move))
