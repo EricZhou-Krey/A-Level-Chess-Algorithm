@@ -1,22 +1,22 @@
 import pygame
-
+from graphicalinterface import IGraphical
+from scenes.playervscomputer import PlayerVsComputer
 class Scene:
+    def __init__(self, dimensions):
+        self.local_point = 0
+        self.dimensions = dimensions
     def while_event(self, events):
         pass
     def draw(self, local_point):
         pass
-    
+
 class PyGameWindow:
-    def __init__(self, window_size, caption, graphical_interface):
+    def __init__(self, window_size, caption):
         pygame.init()
-        self.graphical_interface = graphical_interface
         self.window_size = window_size
         self.window = pygame.display.set_mode(window_size)
         self.caption = caption
         self.running = True
-    
-    def while_event(self, events):
-        pass
     
     def run(self):
         while self.running:
@@ -28,11 +28,11 @@ class PyGameWindow:
         pygame.quit()
     
 class SceneHandler(PyGameWindow):
-    def __init__(self, window_size, caption, graphical_interface, scene_array:list[Scene], scene_init_dict:dict):
-        super().__init__(window_size, caption, graphical_interface)
+    def __init__(self, window_size, caption, graphical_interface, scene_array:list[Scene]):
+        super().__init__(window_size, caption)
+        self.graphical_interface = graphical_interface
         self.scene_array = scene_array
-        for scene in scene_array:
-            scene.__init__(scene_init_dict[scene])
+        graphical_interface.init([scene for scene in self.scene_array])
             
     def while_event(self, events):
         for scene in self.scene_array:
@@ -45,6 +45,11 @@ class SceneHandler(PyGameWindow):
             for event in events:
                 if event.type == pygame.QUIT:
                     self.running = False
-            self.graphical_interface.run([x.draw for x in self.scene_array])
+            self.graphical_interface.run([scene.draw for scene in self.scene_array])
             pygame.display.flip()
         pygame.quit()
+        
+graphical_interface = IGraphical()
+player_vs_computer_scene = PlayerVsComputer()
+window = SceneHandler((900,900), "chess", graphical_interface, [player_vs_computer_scene])
+window.run()

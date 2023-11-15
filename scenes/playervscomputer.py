@@ -1,7 +1,9 @@
 from scenehandler import Scene
-class AuthenticationScene(Scene):
-    def __init__(self):
+class PlayerVsComputer(Scene):
+    def __init__(self, engine, bitboard):
         super().__init__()
+        self.engine = engine
+        self.bitboard = bitboard
         
     def while_event(self, events):
         pass

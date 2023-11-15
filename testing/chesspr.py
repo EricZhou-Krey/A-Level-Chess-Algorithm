@@ -22,7 +22,7 @@ class PyGameWindow:
         
 class Interface(PyGameWindow):
     def __init__(self, window_size, caption):
-        super().__init__(window_size, caption)     
+        super().__init__(window_size, caption)
 
 class ChessBoard(Interface):
     def __init__(self, window_size, caption, tile_size):
@@ -160,6 +160,7 @@ class ChessBoard(Interface):
                 if self.board[starty+(tileIndex*tileIndexYModifier)][startx+(tileIndex*tileIndexXModifier)] != "__":
                     return True
         return False       
+    
     def checkValidMove(self, selectedPeice, moveCoordinate):
         ((peiceCoordinatey, peiceCoordinatex), peice) = selectedPeice
         (moveCoordinatey, moveCoordinatex) = moveCoordinate
@@ -270,6 +271,7 @@ class ChessBoard(Interface):
             self.eventSelect(events)
         else:
             self.eventMovePeice(events)
+            
     def eventSelect(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
