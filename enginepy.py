@@ -378,7 +378,7 @@ class Engine:
 
 if __name__ == "__main__":
     board = "...rrbk.p..q.pp..p....np..p..N.....pNPP..P.P......P...QP....RRK."
-    bitBoard = bitboard.IBitBoard(board)
+    bitBoard = bitboard.BitBoard(board)
     bitBoard.output_board_formatted()
     engine = Engine(bitBoard)
     engine.max_time = int(input("Enter max time: "))

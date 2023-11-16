@@ -2,37 +2,27 @@ import math
 from icecream import ic
     
 class IPiece():
-    def __init__(self):
-        def init_edge():
-            self.file_edge_index = {
-                "A" : [0,8,16,24,32,40,48,56],
-                "B" : [1,9,17,25,33,41,49,57],
-                "G" : [6,14,22,30,38,46,54,62],
-                "H" : [7,15,23,31,39,47,55,63],
-                "1" : [0,1,2,3,4,5,6,7],
-                "2" : [8,9,10,11,12,13,14,15],
-                "7" : [48,49,50,51,52,53,54,55],
-                "8" : [56,57,58,59,60,61,62,63]
-            }
-            self.file_edge_bitboard = {
-                "A" : self.index_board_to_uint64(self.file_edge_index["A"]),
-                "B" : self.index_board_to_uint64(self.file_edge_index["B"]),
-                "G" : self.index_board_to_uint64(self.file_edge_index["G"]),
-                "H" : self.index_board_to_uint64(self.file_edge_index["H"]),
-                "1" : self.index_board_to_uint64(self.file_edge_index["1"]),
-                "2" : self.index_board_to_uint64(self.file_edge_index["2"]),
-                "7" : self.index_board_to_uint64(self.file_edge_index["7"]),
-                "8" : self.index_board_to_uint64(self.file_edge_index["8"]),
-            }
+    def __init__(self) -> None:
+        def init_edge() -> None:
+            file_keys = ["A","B","C","D","E","F","G","H"]
+            edge_keys = ["1","2","3","4","5","6","7","8"]
+            file_values = [[(index_y*len(file_keys))+index_x for index_y in range(len(file_keys))] for index_x in range(len(edge_keys))]
+            edge_values = [[index_x+(index_y*len(file_keys)) for index_x in range(len(edge_keys))] for index_y in range(len(file_keys))]
+            
+            file_values.extend(edge_values)
+            file_keys.extend(edge_keys)
+            file_edge_values = [self.index_board_to_int64(index_array) for index_array in file_values]
+            
+            self.file_edge_bitboard = dict(zip(file_keys, file_edge_values))
         init_edge()
 
-    def index_board_to_uint64(self, index_array):
+    def index_board_to_int64(self, index_array:list[int]) -> int: #returns bitboard as integer from list of indexes
             bitBoard = int()
             for index in index_array:
                 bitBoard += 2**index
             return bitBoard
         
-    def get_knight_bitboard(self, board, similar=0):
+    def get_knight_bitboard(self, board:int, similar:int=0) -> int:
         fileA = self.file_edge_bitboard["A"]
         fileB = self.file_edge_bitboard["B"]
         fileG = self.file_edge_bitboard["G"]
@@ -51,7 +41,7 @@ class IPiece():
         move |= ((board & ~(fileH|fileG|rankOne)) >> 6) & ~(similar) # SEE
         return move
     
-    def get_king_bitboard(self, board, similar=0):
+    def get_king_bitboard(self, board:int, similar:int=0) -> int:
         fileA = self.file_edge_bitboard["A"]
         fileH = self.file_edge_bitboard["H"]
         rankOne = self.file_edge_bitboard["1"]
@@ -66,7 +56,7 @@ class IPiece():
         move |= ((board & ~(fileA|rankOne)) >> 9) & ~(similar) #SW
         return move
     
-    def get_pawn_bitboard(self, board, isWhite=True, opposing=0, similar=0):
+    def get_pawn_bitboard(self, board:int, isWhite:bool=True, opposing:int=0, similar:int=0) -> int:
         fileA = self.file_edge_bitboard["A"]
         fileH = self.file_edge_bitboard["H"]
         rankOne = self.file_edge_bitboard["1"]
@@ -85,8 +75,8 @@ class IPiece():
             move |= ((board & ~(fileA)) >> 9) & opposing #SW
         return move
     
-    def get_bishop_bitboard(self, board, opposing=0, similar=0):
-        def singular_bishop(board, opposing, similar):
+    def get_bishop_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
+        def singular_bishop(board:int, opposing:int=0, similar:int=0) -> int:
             fileWEdge = self.file_edge_bitboard["A"]
             fileEEdge = self.file_edge_bitboard["H"]
             rankSEdge = self.file_edge_bitboard["1"]
@@ -125,8 +115,8 @@ class IPiece():
                 move |= singular_bishop(2**index, opposing, similar)
         return move
     
-    def get_rook_bitboard(self, board, opposing=0, similar=0):
-        def singular_rook(board, opposing=0, similar=0):
+    def get_rook_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
+        def singular_rook(board:int, opposing:int=0, similar:int=0) -> int:
             fileWEdge = self.file_edge_bitboard["A"]
             fileEEdge = self.file_edge_bitboard["H"]
             rankSEdge = self.file_edge_bitboard["1"]
@@ -164,77 +154,55 @@ class IPiece():
                 move |= singular_rook(2**index, opposing, similar)
         return move
 
-    def get_queen_bitboard(self, board, opposing=0, similar=0):
+    def get_queen_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
         move = self.get_bishop_bitboard(board, opposing, similar)
         move |= self.get_rook_bitboard(board, opposing, similar)
         return move
 
-class IBitBoard(IPiece):
-    def __init__(self, notationBoard:str): #lowercase = white, Uppercase = black
-        def init_bitboard(index_board):
-            self.bitboard_dict = {
-                "rook" : self.index_board_to_uint64(index_board["rook"]),
-                "pawn" : self.index_board_to_uint64(index_board["pawn"]),
-                "bishop" : self.index_board_to_uint64(index_board["bishop"]),
-                "knight" : self.index_board_to_uint64(index_board["knight"]),
-                "queen" : self.index_board_to_uint64(index_board["queen"]),
-                "king" : self.index_board_to_uint64(index_board["king"]),
-                "Rook" : self.index_board_to_uint64(index_board["Rook"]),
-                "Pawn" : self.index_board_to_uint64(index_board["Pawn"]),
-                "Bishop" : self.index_board_to_uint64(index_board["Bishop"]),
-                "Knight" : self.index_board_to_uint64(index_board["Knight"]),
-                "Queen" : self.index_board_to_uint64(index_board["Queen"]),
-                "King" : self.index_board_to_uint64(index_board["King"]),
-            }
-            
-        def init_index_board(board):
-            self.piece_index_board = {
-                "rook" : [],
-                "pawn" : [],
-                "bishop" : [],
-                "knight" : [],
-                "queen" : [],
-                "king" : [],
-                "Rook" : [],
-                "Pawn" : [],
-                "Bishop" : [],
-                "Knight" : [],
-                "Queen" : [],
-                "King" : [],
-            }
-            for index, notation in enumerate(board):
+class BitBoard(IPiece):
+    def __init__(self, notationBoard:str) -> None:
+        def init_bitboard(index_board:{str:list[int]}) -> None:
+            self.bitboard_dict = {}
+            for key in index_board.keys():
+                self.bitboard_dict[key] = self.index_board_to_int64(index_board[key])
+                
+        def init_index_board(notationBoard:str) -> {str:list[int]}:
+            pieces = ["rook", "knight", "bishop", "queen", "king", "pawn", "Rook", "Pawn", "Bishop", "Knight", "Queen", "King"]
+            piece_index_board = dict(zip(pieces, [[] for key in range(len(pieces))]))
+            for index, notation in enumerate(notationBoard):
                 match notation:
                     case "r":
-                        self.piece_index_board["rook"].append(index)
+                        piece_index_board["rook"].append(index)
                     case "n":
-                        self.piece_index_board["knight"].append(index)
+                        piece_index_board["knight"].append(index)
                     case "b":
-                        self.piece_index_board["bishop"].append(index)
+                        piece_index_board["bishop"].append(index)
                     case "q":
-                        self.piece_index_board["queen"].append(index)
+                        piece_index_board["queen"].append(index)
                     case "p":
-                        self.piece_index_board["pawn"].append(index)
+                        piece_index_board["pawn"].append(index)
                     case "k":
-                        self.piece_index_board["king"].append(index)
+                        piece_index_board["king"].append(index)
                     case "R":
-                        self.piece_index_board["Rook"].append(index)
+                        piece_index_board["Rook"].append(index)
                     case "N":
-                        self.piece_index_board["Knight"].append(index)
+                        piece_index_board["Knight"].append(index)
                     case "B":
-                        self.piece_index_board["Bishop"].append(index)
+                        piece_index_board["Bishop"].append(index)
                     case "P":
-                        self.piece_index_board["Pawn"].append(index)
+                        piece_index_board["Pawn"].append(index)
                     case "K":
-                        self.piece_index_board["King"].append(index)
+                        piece_index_board["King"].append(index)
                     case "Q":
-                        self.piece_index_board["Queen"].append(index)
+                        piece_index_board["Queen"].append(index)
+            return piece_index_board
         
         super().__init__()
-        init_index_board(notationBoard) # self.piece_index_board[peice]
-        init_bitboard(self.piece_index_board) #self.bitboard_dict[piece]
+        piece_index_board = init_index_board(notationBoard)
+        init_bitboard(piece_index_board) #lowercase = white, Uppercase = black
         self.captured_piece = []
 
-    def get_move(self, piece, opposing=0, similar=0):
+    def get_move(self, piece:str, opposing:int=0, similar:int=0) -> int:
         match piece.lower():
             case "pawn":
                 return self.get_pawn_bitboard(self.bitboard_dict[piece], not(piece[0].isupper()), opposing, similar)
@@ -251,18 +219,21 @@ class IBitBoard(IPiece):
             case _:
                 return 0
 
-    def apply_move(self, move):
+    def apply_move(self, move:tuple) -> bool: #returns whether a piece was captured
         if len(move) == 3:
             piece, origin_index, to_index = move
             promote_key = ""
         else:
             piece, origin_index, to_index, promote_key = move
+            
         origin_bit = 2**origin_index
         to_bit = 2**to_index
+        
         if promote_key == "":
             origin_to_bit = origin_bit | to_bit
         else:
             origin_to_bit = origin_bit
+            
         pw_board, pd_board = self.combined_board
         combined_board = pw_board | pd_board
         captured = False
@@ -278,7 +249,7 @@ class IBitBoard(IPiece):
         self.bitboard_dict[piece] ^= origin_to_bit
         return captured
     
-    def revert_move(self, move, captured):
+    def revert_move(self, move:tuple, captured:bool) -> None:
         if len(move) == 3:
             piece, origin, to = move
             move = (piece, to, origin)
@@ -293,7 +264,7 @@ class IBitBoard(IPiece):
             piece, bitboard = self.captured_piece.pop()
             self.bitboard_dict[piece] |= bitboard
             
-    def king_safe(self, isWhite=True):
+    def king_safe(self, isWhite:bool=True) -> bool:
         if isWhite:
             if self.bitboard_dict["king"] == 0:
                 return False
@@ -311,8 +282,8 @@ class IBitBoard(IPiece):
                     return False
         return True
     
-    def output_bitboard_formatted(self, bitboard=""):
-        if bitboard == "":
+    def output_bitboard_formatted(self, bitboard:int=-1) -> None:
+        if bitboard == -1:
             bitboard = self.combined_board[0]|self.combined_board[1]
         board = format(bitboard, "064b")
         for row in range(0,(len(board)//8)):
@@ -321,8 +292,25 @@ class IBitBoard(IPiece):
             else:
                 print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
-        
-    def output_board_formatted(self):
+    
+    def number_to_algrebra_notation(self, move:tuple) -> tuple:
+        if len(move) == 3:
+            piece, origin, to = move
+            promote = False
+        else:
+            piece, origin, to, promote_key = move
+            promote = True
+        files = "ABCDEFGH"
+        origin_rank = str((origin//8) + 1)
+        origin_file = str(files[origin%8])
+        to_rank = str((to//8) + 1)
+        to_file = str(files[to%8])
+        if promote:
+            return piece, origin_file+origin_rank, to_file+to_rank, promote_key
+        else:
+            return piece, origin_file+origin_rank, to_file+to_rank
+    @property
+    def output_board_formatted(self) -> None:
         board = ["." for x in range(64)]
         for piece_key in self.bitboard_dict.keys():
             for index, bit in enumerate(str(format(self.bitboard_dict[piece_key], "064b"))[::-1]):
@@ -340,26 +328,36 @@ class IBitBoard(IPiece):
             else:
                 print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
-    
-    def output_move(self, move):
-        if len(move) == 3:
-            piece, origin, to = move
-            promote = False
-        else:
-            piece, origin, to, promote_key = move
-            promote = True
-        files = "ABCDEFGH"
-        origin_rank = str((origin//8) + 1)
-        origin_file = str(files[origin%8])
-        to_rank = str((to//8) + 1)
-        to_file = str(files[to%8])
-        if promote:
-            return (piece, origin_file+origin_rank, to_file+to_rank, promote_key)
-        else:
-            return (piece, origin_file+origin_rank, to_file+to_rank)
-    
     @property
-    def legal_move_dict(self):
+    def move_dict(self) -> ({int:int}, {str:int}): #all move dictionaries below formatted as "origin:to" and "piece:origin"
+        white, dark = self.combined_board
+        key_to_index = {}
+        move_dictionary = {}
+        for key in self.bitboard_dict.keys():
+            key_to_index[key] = []
+            for index, bit in enumerate(str(format(self.bitboard_dict[key], "064b"))[::-1]):
+                if int(bit) == 1:
+                    key_to_index[key].append(index)
+                    move_dictionary[index] = []
+                    if key[0].isupper():
+                        move_board = str(format(self.get_move(key, white, dark), "064b"))[::-1]
+                    else:
+                        move_board = str(format(self.get_move(key, dark, white), "064b"))[::-1]
+                    for move_index, m_bit in enumerate(move_board):
+                        if int(m_bit) == 1:
+                            if key == "Pawn" and (2**move_index & self.file_edge_bitboard["1"]) > 0:
+                                promote_keys = ["Knight", "Bishop", "Rook", "Queen"]
+                                for promote_key in promote_keys:
+                                    move_dictionary[index].append((move_index, promote_key))
+                            elif key == "pawn" and (2**move_index & self.file_edge_bitboard["8"]) > 0:
+                                promote_keys = ["knight", "bishop", "rook", "queen"]
+                                for promote_key in promote_keys:
+                                    move_dictionary[index].append((move_index, promote_key))
+                            else:
+                                move_dictionary[index].append(move_index)
+        return move_dictionary, key_to_index
+    @property
+    def legal_move_dict(self) -> ({int:int}, {str:int}):
         move_dictionary, key_to_index = self.move_dict
         legal_move_dict = {}
         legal_key_index = {ki_piece_key:[] for ki_piece_key in key_to_index.keys()}
@@ -389,35 +387,7 @@ class IBitBoard(IPiece):
                         legal_key_index[piece_key].append(origin)
         return legal_move_dict, legal_key_index
     @property
-    def move_dict(self):
-        white, dark = self.combined_board
-        key_to_index = {}
-        move_dictionary = {}
-        for key in self.bitboard_dict.keys():
-            key_to_index[key] = []
-            for index, bit in enumerate(str(format(self.bitboard_dict[key], "064b"))[::-1]):
-                if int(bit) == 1:
-                    key_to_index[key].append(index)
-                    move_dictionary[index] = []
-                    if key[0].isupper():
-                        move_board = str(format(self.get_move(key, white, dark), "064b"))[::-1]
-                    else:
-                        move_board = str(format(self.get_move(key, dark, white), "064b"))[::-1]
-                    for move_index, m_bit in enumerate(move_board):
-                        if int(m_bit) == 1:
-                            if key == "Pawn" and (2**move_index & self.file_edge_bitboard["1"]) > 0:
-                                promote_keys = ["Knight", "Bishop", "Rook", "Queen"]
-                                for promote_key in promote_keys:
-                                    move_dictionary[index].append((move_index, promote_key))
-                            elif key == "pawn" and (2**move_index & self.file_edge_bitboard["8"]) > 0:
-                                promote_keys = ["knight", "bishop", "rook", "queen"]
-                                for promote_key in promote_keys:
-                                    move_dictionary[index].append((move_index, promote_key))
-                            else:
-                                move_dictionary[index].append(move_index)
-        return move_dictionary, key_to_index
-    @property
-    def split_move_dict(self):
+    def split_move_dict(self) -> (({int:int}, {str:int}), ({int:int}, {str:int})):
         move_dict, key_index = self.legal_move_dict
         w_move_dict = {}
         w_key = {}
@@ -437,7 +407,7 @@ class IBitBoard(IPiece):
                     d_key[key] = key_index[key]
         return (w_move_dict, w_key), (d_move_dict, d_key)
     @property
-    def move_board(self):
+    def move_board(self) -> (int, int):
         move_dict, key_index = self.move_dict
         w_move = 0
         d_move = 0
@@ -454,7 +424,7 @@ class IBitBoard(IPiece):
                         w_move |= index
         return w_move, d_move
     @property
-    def combined_board(self):
+    def combined_board(self) -> (int, int):
         pw_board = 0
         pd_board = 0
         for key in self.bitboard_dict.keys():
@@ -463,8 +433,9 @@ class IBitBoard(IPiece):
             else:
                 pw_board |= self.bitboard_dict[key]
         return pw_board, pd_board
-
+    
 if __name__ == "__main__":
     #board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
     board = "b............k.....r...p...R.Pq.....P.P.P..p...P.P...P........K."
-    bitBoard = IBitBoard(board)
+    bitBoard = BitBoard(board)
+    bitBoard.output_board_formatted
