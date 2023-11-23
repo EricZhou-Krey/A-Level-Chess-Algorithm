@@ -193,12 +193,11 @@ class Engine:
     def min_max_dict(self,
                       current_depth=0,
                       current_colour="WHITE", current_moves=None, current_key_index=None, current_origin_list=None,
-                      move_evaluation={}, applied_moves=[]):
+                      move_evaluation={}):
         
-        def simulate_next_move(current_depth, current_colour, move_evaluation, applied_moves, bitboard_object, current_best_eval):
+        def simulate_next_move(current_depth, current_colour, move_evaluation, bitboard_object, current_best_eval):
             search_move = current_min_max(move_evaluation, current_colour)[1]
-            captured = bitboard_object.apply_move(search_move)
-            applied_moves.append(search_move)
+            bitboard_object.apply_move(search_move)
             if current_colour == "WHITE":
                 new_colour = "BLACK"
             else:
@@ -208,11 +207,10 @@ class Engine:
             move_evaluation[search_move] = self.min_max_dict(
                         current_depth + 1,
                         new_colour, new_moves, new_key_index, new_origin_list,
-                        move_evaluation[search_move], applied_moves)
+                        move_evaluation[search_move])
             
             current_best_eval = current_min_max(move_evaluation, current_colour)[0]
-            move = applied_moves.pop()
-            bitboard_object.revert_move(move, captured)
+            bitboard_object.revert_move()
             return move_evaluation, current_best_eval
         
         def get_moves_key_origin(bitboard_object, colour):
@@ -304,19 +302,19 @@ class Engine:
                     applied_to, promote_key = applied_to
                     applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
                     
-                captured = self.bitboard_object.apply_move(applied_move)
+                self.bitboard_object.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
                 sum_eval = float(w_evaluation - d_evaluation)
                 move_evaluation[applied_move] = sum_eval
                 
-                self.bitboard_object.revert_move(applied_move, captured)
+                self.bitboard_object.revert_move()
                 
         while True:
             best, self.current_best_eval = is_current_best(move_evaluation, current_colour, current_depth, self.current_best_eval)
             if self.max_time < self.current_time or current_depth > self.max_depth:
                 return move_evaluation
             elif best:
-                move_evaluation, self.current_best_eval = simulate_next_move(current_depth, current_colour, move_evaluation, applied_moves, self.bitboard_object, self.current_best_eval)
+                move_evaluation, self.current_best_eval = simulate_next_move(current_depth, current_colour, move_evaluation, self.bitboard_object, self.current_best_eval)
             else:
                 return move_evaluation
     

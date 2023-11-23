@@ -1,4 +1,4 @@
-import math
+import math, time
 from icecream import ic
     
 class IPiece():
@@ -21,7 +21,7 @@ class IPiece():
             for index in index_array:
                 bitBoard += 2**index
             return bitBoard
-        
+
     def get_knight_bitboard(self, board:int, similar:int=0) -> int:
         fileA = self.file_edge_bitboard["A"]
         fileB = self.file_edge_bitboard["B"]
@@ -40,9 +40,11 @@ class IPiece():
         move |= ((board & ~(fileA|fileB|rankOne)) >> 10) & ~(similar) # SWW
         move |= ((board & ~(fileH|fileG|rankOne)) >> 6) & ~(similar) # SEE
         return move
-    
-    def get_king_bitboard(self, board:int, similar:int=0) -> int:
+
+    def get_king_bitboard(self, board:int, similar:int=0, opposing:int=0) -> int:
         fileA = self.file_edge_bitboard["A"]
+        fileB = self.file_edge_bitboard["B"]
+        fileG = self.file_edge_bitboard["G"]
         fileH = self.file_edge_bitboard["H"]
         rankOne = self.file_edge_bitboard["1"]
         rankEight = self.file_edge_bitboard["8"]
@@ -54,8 +56,10 @@ class IPiece():
         move |= ((board & ~(fileH|rankOne)) >> 7) & ~(similar) #SE
         move |= ((board & ~(rankOne)) >> 8) & ~(similar) #S
         move |= ((board & ~(fileA|rankOne)) >> 9) & ~(similar) #SW
+        move |= ((board & ~(fileA|fileB)) >> 2) & ~(similar|opposing|similar >> 1| opposing >> 1) #WW
+        move |= ((board & ~(fileG|fileH)) << 2) & ~(similar|opposing|similar << 1| opposing << 1) # EE
         return move
-    
+
     def get_pawn_bitboard(self, board:int, isWhite:bool=True, opposing:int=0, similar:int=0) -> int:
         fileA = self.file_edge_bitboard["A"]
         fileH = self.file_edge_bitboard["H"]
@@ -65,16 +69,16 @@ class IPiece():
         rankEight = self.file_edge_bitboard["8"]
         if isWhite:
             move = (board << 8) & ~(similar) #N
-            move |= ((board & ~(rankSeven) & rankTwo) << 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankOne)) >> 8) #NN
-            move |= ((board & ~(fileA)) << 7) & opposing #NW
-            move |= ((board & ~(fileH)) << 9) & opposing #NE
+            move |= ((board & ~(rankSeven) & rankTwo) << 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankOne)) << 8) #NN
+            move |= ((board & ~(fileA)) << 7) & (opposing|opposing << 8) #NW
+            move |= ((board & ~(fileH)) << 9) & (opposing|opposing << 8) #NE
         else:
             move = (board >> 8) & ~(similar) #S
-            move |= ((board & ~(rankTwo) & rankSeven) >> 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankEight)) << 8) #SS
-            move |= ((board & ~(fileH)) >> 7) & opposing #SE
-            move |= ((board & ~(fileA)) >> 9) & opposing #SW
+            move |= ((board & ~(rankTwo) & rankSeven) >> 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankEight)) >> 8) #SS
+            move |= ((board & ~(fileH)) >> 7) & (opposing|opposing >> 8) #SE
+            move |= ((board & ~(fileA)) >> 9) & (opposing|opposing >> 8) #SW
         return move
-    
+
     def get_bishop_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
         def singular_bishop(board:int, opposing:int=0, similar:int=0) -> int:
             fileWEdge = self.file_edge_bitboard["A"]
@@ -199,15 +203,19 @@ class BitBoard(IPiece):
         
         super().__init__()
         piece_index_board = init_index_board(notationBoard)
-        init_bitboard(piece_index_board) #lowercase = white, Uppercase = black
-        self.captured_piece = []
+        init_bitboard(piece_index_board) #lowercase = white, Uppercase = Black
+        self.castling = {
+            "BLACK" : {"left": True, "right": True},
+            "WHITE" : {"left": True, "right": True}
+        }
+        self.applied_moves = []
 
     def get_move(self, piece:str, opposing:int=0, similar:int=0) -> int:
         match piece.lower():
             case "pawn":
                 return self.get_pawn_bitboard(self.bitboard_dict[piece], not(piece[0].isupper()), opposing, similar)
             case "king":
-                return self.get_king_bitboard(self.bitboard_dict[piece], similar)
+                return self.get_king_bitboard(self.bitboard_dict[piece], similar, opposing)
             case "knight":
                 return self.get_knight_bitboard(self.bitboard_dict[piece], similar)
             case "bishop":
@@ -219,7 +227,35 @@ class BitBoard(IPiece):
             case _:
                 return 0
 
-    def apply_move(self, move:tuple) -> bool: #returns whether a piece was captured
+    def edit_board(self, move:tuple) -> None:
+        if len(move) == 3:
+            piece, origin_index, to_index = move
+            promote_key = ""
+        else:
+            piece, origin_index, to_index, promote_key = move
+            
+        origin_bit = 2**origin_index
+        to_bit = 2**to_index
+        
+        if promote_key == "":
+            origin_to_bit = origin_bit | to_bit
+        else:
+            origin_to_bit = origin_bit
+        
+        pw_board, pd_board = self.combined_board
+        combined_board = pw_board | pd_board
+        if combined_board ^ to_bit < combined_board:
+            for key in self.bitboard_dict.keys():
+                if self.bitboard_dict[key] & to_bit > 0:
+                    self.bitboard_dict[key] ^= to_bit
+                    break
+        
+        if promote_key != "":
+            self.bitboard_dict[promote_key] |= to_bit
+        
+        self.bitboard_dict[piece] ^= origin_to_bit
+
+    def apply_move(self, move:tuple) -> None:
         if len(move) == 3:
             piece, origin_index, to_index = move
             promote_key = ""
@@ -240,30 +276,148 @@ class BitBoard(IPiece):
         if combined_board ^ to_bit < combined_board:
             for key in self.bitboard_dict.keys():
                 if self.bitboard_dict[key] & to_bit > 0:
-                    self.captured_piece.append((key, to_bit))
+                    self.bitboard_dict[key] ^= to_bit
                     captured = True
                     break
                 
         if promote_key != "":
             self.bitboard_dict[promote_key] |= to_bit
         self.bitboard_dict[piece] ^= origin_to_bit
-        return captured
-    
-    def revert_move(self, move:tuple, captured:bool) -> None:
-        if len(move) == 3:
-            piece, origin, to = move
-            move = (piece, to, origin)
-        else:
-            piece, origin, to, promote_key = move
+        
+        castle_capture = castle_rook = False
+        if piece.lower() == "rook" and origin_index in [0,7,56,63]:
+            castle_rook = True
+            match origin_index:
+                case 0:
+                    castle_colour = "WHITE"
+                    castle_direction = "left"
+                case 7:
+                    castle_colour = "WHITE"
+                    castle_direction = "right"
+                case 56:
+                    castle_colour = "BLACK"
+                    castle_direction = "left"
+                case 63:
+                    castle_colour = "BLACK"
+                    castle_direction = "right"
+        elif to_index in [0,7,56,63]:
+            castle_capture = True
+            match to_index:
+                case 0:
+                    castle_colour = "WHITE"
+                    castle_direction = "left"
+                case 7:
+                    castle_colour = "WHITE"
+                    castle_direction = "right"
+                case 56:
+                    castle_colour = "BLACK"
+                    castle_direction = "left"
+                case 63:
+                    castle_colour = "BLACK"
+                    castle_direction = "right"
+        if castle_rook or castle_capture:
+            self.castling[castle_colour][castle_direction] = (False, self.castling[castle_colour][castle_direction])
+                    
+        if piece.lower() == "king" and abs(origin_index - to_index) == 2:
             if piece[0].isupper():
-                move = (piece, to, origin, "Pawn")
+                castle_piece = "Rook"
             else:
-                move = (piece, to, origin, "pawn")
-        self.apply_move(move)
-        if captured and self.captured_piece[0]:
-            piece, bitboard = self.captured_piece.pop()
-            self.bitboard_dict[piece] |= bitboard
+                castle_piece = "rook"
+            if origin_index - to_index > 0: #to left
+                castle_origin = origin_index - 4
+                castle_to = origin_index - 1
+            else: #to right
+                castle_origin = origin_index + 3
+                castle_to = origin_index + 1
+            if castle_origin >= 0 and castle_to >= 0:
+                self.edit_board((castle_piece, castle_origin, castle_to))
+                if piece[0].isupper():
+                    self.castling["BLACK"]["right"] = (False, self.castling["BLACK"]["right"])
+                    self.castling["BLACK"]["left"] = (False, self.castling["BLACK"]["left"])
+                else:
+                    self.castling["WHITE"]["right"] = (False, self.castling["WHITE"]["right"])
+                    self.castling["WHITE"]["left"] = (False, self.castling["WHITE"]["left"])
+                
+        if captured == True:
+            self.applied_moves.append((move, (key, to_bit)))
+        else:
+            self.applied_moves.append(move)
+
+    def revert_move(self) -> None:
+        move = self.applied_moves.pop()
+        captured = False
+        if len(move) == 2:
+            captured = True
+            move, (capture_key, capture_bit) = move
             
+        if len(move) == 3:
+            piece, origin_index, to_index = move
+            revert_move = (piece, to_index, origin_index)
+        else:
+            piece, origin_index, to_index, promote_key = move
+            if piece[0].isupper():
+                revert_move = (piece, to_index, origin_index, "Pawn")
+            else:
+                revert_move = (piece, to_index, origin_index, "pawn")
+        
+        self.edit_board(revert_move)
+        
+        if captured:
+            self.bitboard_dict[capture_key] |= capture_bit
+        castle_capture = castle_rook = False
+        
+        if piece.lower() == "rook" and origin_index in [0, 7, 56, 63]:
+            castle_rook = True
+            match origin_index:
+                case 0:
+                    castle_colour = "WHITE"
+                    castle_direction = "left"
+                case 7:
+                    castle_colour = "WHITE"
+                    castle_direction = "right"
+                case 56:
+                    castle_colour = "BLACK"
+                    castle_direction = "left"
+                case 63:
+                    castle_colour = "BLACK"
+                    castle_direction = "right"
+        elif to_index in [0,7,56,63]:
+            castle_capture = True
+            match to_index:
+                case 0:
+                    castle_colour = "WHITE"
+                    castle_direction = "left"
+                case 7:
+                    castle_colour = "WHITE"
+                    castle_direction = "right"
+                case 56:
+                    castle_colour = "BLACK"
+                    castle_direction = "left"
+                case 63:
+                    castle_colour = "BLACK"
+                    castle_direction = "right"
+        if castle_rook or castle_capture:
+            self.castling[castle_colour][castle_direction] = self.castling[castle_colour][castle_direction][1]
+            
+        if piece.lower() == "king" and abs(origin_index - to_index) == 2:
+            if piece[0].isupper():
+                castle_piece = "Rook"
+                self.castling["BLACK"]["left"] = self.castling["BLACK"]["left"][1]
+                self.castling["BLACK"]["right"] = self.castling["BLACK"]["right"][1]
+            else:
+                castle_piece = "rook"
+                self.castling["WHITE"]["left"] = self.castling["WHITE"]["left"][1]
+                self.castling["WHITE"]["right"] = self.castling["WHITE"]["right"][1]
+            
+            if origin_index - to_index > 0: #back to left
+                castle_to = origin_index - 4
+                castle_origin = origin_index - 1 
+            else: #back to right
+                castle_to = origin_index + 3
+                castle_origin = origin_index + 1
+            if castle_to >= 0 and castle_origin >= 0:
+                self.edit_board((castle_piece, castle_origin, castle_to))
+
     def king_safe(self, isWhite:bool=True) -> bool:
         if isWhite:
             if self.bitboard_dict["king"] == 0:
@@ -281,7 +435,7 @@ class BitBoard(IPiece):
                 if to == king_origin:
                     return False
         return True
-    
+
     def output_bitboard_formatted(self, bitboard:int=-1) -> None:
         if bitboard == -1:
             bitboard = self.combined_board[0]|self.combined_board[1]
@@ -292,7 +446,7 @@ class BitBoard(IPiece):
             else:
                 print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
         print(" ".join("ABCDEFGH"))
-    
+
     def number_to_algrebra_notation(self, move:tuple) -> tuple:
         if len(move) == 3:
             piece, origin, to = move
@@ -366,25 +520,53 @@ class BitBoard(IPiece):
                 if origin in key_to_index[key]:
                     piece_key = key
                     break
-            for to in move_dictionary[origin]:
-                safe = True
-                if type(to) is tuple:
-                    move = (piece_key, origin, to[0], to[1])
+            if piece_key[0].isupper():
+                isWhite = False
+                colour = "BLACK"
+            else:
+                isWhite = True
+                colour = "WHITE"
+            for to_promote in move_dictionary[origin]:
+                legal = True
+                if type(to_promote) is tuple:
+                    move = (piece_key, origin, to_promote[0], to_promote[1])
                 else:
-                    move = (piece_key, origin, to)
-                captured = self.apply_move(move)
-                if piece_key[0].isupper():
-                    isWhite = False
-                else:
-                    isWhite = True
-                safe = self.king_safe(isWhite)
-                self.revert_move(move, captured)
-                if safe == True:
+                    move = (piece_key, origin, to_promote)
+                self.apply_move(move)
+                
+                legal = self.king_safe(isWhite)
+                self.revert_move()
+                
+                if piece_key.lower() == "king" and abs(move[1] - move[2]) == 2:
+                    if move[1] - move[2] > 0: #to left
+                        to_tile_between = -1
+                        if not(self.castling[colour]["left"]):
+                            legal = False
+                    else: #to right
+                        to_tile_between = 1
+                        if not(self.castling[colour]["right"]):
+                            legal = False
+                    legal = legal and self.king_safe(isWhite) #check if from in check
+                    self.apply_move((piece_key , origin, origin+to_tile_between))
+                    legal = legal and self.king_safe(isWhite) #check tile between to and from
+                    self.revert_move() 
+                    
+                if piece_key.lower() == "pawn" and (abs(move[1] - move[2]) == 7 or abs(move[1] - move[2]) == 9):
+                    last_piece, last_origin, last_to = self.applied_moves[len(self.applied_moves)-1][:3]
+                    en_passant = last_to % 8 == move[2] % 8 and last_piece.lower() == "pawn" and abs(last_origin - last_to) == 16
+                    taking = move[2] in move_dictionary.keys()
+                    if en_passant or taking:
+                        legal = True
+                    else:
+                        legal = False
+                        
+                if legal == True:
                     if not(origin in legal_move_dict.keys()):
                         legal_move_dict[origin] = []
-                    legal_move_dict[origin].append(to)
+                    legal_move_dict[origin].append(to_promote)
                     if not(origin in legal_key_index[piece_key]):
                         legal_key_index[piece_key].append(origin)
+                        
         return legal_move_dict, legal_key_index
     @property
     def split_move_dict(self) -> (({int:int}, {str:int}), ({int:int}, {str:int})):
@@ -436,6 +618,7 @@ class BitBoard(IPiece):
     
 if __name__ == "__main__":
     #board = "r...R...pp....k...p..p.pP.Pp..n..P...pP...P..N.P.....P....R...K."
-    board = "b............k.....r...p...R.Pq.....P.P.P..p...P.P...P........K."
+    board = "r...k..rpppppppp....................pppp........PPPPPPPP.......K"
     bitBoard = BitBoard(board)
-    bitBoard.output_board_formatted
+    while True:
+        pass
