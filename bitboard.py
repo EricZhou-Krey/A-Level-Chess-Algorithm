@@ -305,9 +305,22 @@ class BitBoard(IPiece):
                 self.output_bitboard_formatted(to_bit)
                 self.output_bitboard_formatted(self.bitboard_dict[capture_key])
                 if self.bitboard_dict[capture_key] & to_bit > 0:
-                    self.bitboard_dict[capture_key] ^= to_bit
+                    capture_to_bit = to_bit
+                    self.bitboard_dict[capture_key] ^= capture_to_bit
                     captured = True
                     break
+                
+        if not(captured) and piece.lower() == "pawn" and not(origin_index % 8 == to_index % 8):
+            if piece[0].isupper():
+                capture_key = "pawn"
+                capture_to_bit = to_bit << 8
+                self.bitboard_dict[capture_key] ^= capture_to_bit
+                captured = True
+            else:
+                capture_key = "Pawn"
+                capture_to_bit = to_bit >> 8
+                self.bitboard_dict[capture_key] ^= capture_to_bit
+                captured = True
         
         self.bitboard_dict[piece] ^= origin_to_bit
         
@@ -377,12 +390,13 @@ class BitBoard(IPiece):
                 self.__can_castle["BLACK"]["left"] = (False, self.__can_castle["BLACK"]["left"])
             elif origin_index == 4:
                 self.__can_castle["WHITE"]["right"] = (False, self.__can_castle["WHITE"]["right"])
-                self.__can_castle["WHITE"]["left"] = (False, self.__can_castle["WHITE"]["left"])
+                self.__can_castle["WHITE"]["left"] = (False, self.__can_castle["WHITE"]["left"])        
+        
         """
         Lastly, appends the applied move, with or without captured piece to "self._applied_moves"
         """
         if captured == True:
-            self._applied_moves.append((move, (capture_key, to_bit)))
+            self._applied_moves.append((move, (capture_key, capture_to_bit)))
         else:
             self._applied_moves.append(move)
 
@@ -425,7 +439,6 @@ class BitBoard(IPiece):
         - King is moved from starting position or castled
         In which case, the "self.__can_castle" is updated to upack itself to the next boolean
         """
-        
         castle_capture = castle_rook = False
         if piece.lower() == "rook" and origin_index in [0, 7, 56, 63]:
             castle_rook = True

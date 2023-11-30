@@ -64,9 +64,15 @@ bitBoard.output_board_formatted
 King safety checks
 """
 
-board = "r...k..r................................................R...K..R"
+board = "....k.....Q.................................................K..."
 bitBoard = BitBoard(board)
 bitBoard.output_board_formatted
+
+bitBoard.move_dict
+
+bitBoard.legal_move_dict
+
+bitBoard.split_move_dict
 
 """
 Castling tests
@@ -104,6 +110,17 @@ bitBoard.revert_move()
 """
 En passant tests
 """
-board = "....k............................p.p.p.p........PPPPPPPP....K..."
+board = "....k............................p..............P...........K..."
 bitBoard = BitBoard(board)
+bitBoard.output_board_formatted
+
+bitBoard.apply_move(("Pawn", 48, 32))
+bitBoard.output_board_formatted
+
+bitBoard.legal_move_dict
+
+bitBoard.apply_move(("pawn", 33, 40))
+bitBoard.output_board_formatted
+
+bitBoard.revert_move()
 bitBoard.output_board_formatted
