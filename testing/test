@@ -1,0 +1,109 @@
+"""
+General bitboard tests
+"""
+
+board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+bitBoard = BitBoard(board)
+bitBoard.output_board_formatted
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("pawn"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("Pawn"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("knight"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("Knight"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("bishop"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("Bishop"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("rook"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("Rook"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("queen"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("Queen"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("king"))
+
+bitBoard.output_bitboard_formatted(bitBoard._get_move("King"))
+
+bitBoard.move_dict
+bitBoard.legal_move_dict
+
+bitBoard._edit_board(("knight", 1, 16))
+
+bitBoard._edit_board(("knight", 16, 1))
+
+bitBoard.apply_move(("pawn", 8, 24))
+bitBoard._applied_moves
+bitBoard.apply_move(("rook", 0, 16))
+bitBoard._applied_moves
+
+bitBoard.move_dict
+bitBoard.legal_move_dict
+bitBoard.split_move_dict
+
+bitBoard.output_bitboard_formatted(bitBoard._combined_board[0])
+bitBoard.output_bitboard_formatted(bitBoard._combined_board[1])
+
+bitBoard.output_bitboard_formatted(bitBoard.move_board[0])
+bitBoard.output_bitboard_formatted(bitBoard.move_board[1])
+
+bitBoard.revert_move()
+bitBoard._applied_moves
+bitBoard.output_board_formatted
+
+bitBoard.revert_move()
+bitBoard.applied_moves
+bitBoard.output_board_formatted
+
+"""
+King safety checks
+"""
+
+board = "r...k..r................................................R...K..R"
+bitBoard = BitBoard(board)
+bitBoard.output_board_formatted
+
+"""
+Castling tests
+"""
+
+board = "r...k..r................................................R...K..R"
+bitBoard = BitBoard(board)
+bitBoard.output_board_formatted
+bitBoard.__can_castle
+
+bitBoard.apply_move(("king", 4, 3))
+bitBoard.__can_castle
+bitBoard.output_board_formatted
+
+bitBoard.move_dict
+bitBoard.legal_move_dict
+
+bitBoard.revert_move()
+
+bitBoard.apply_move(("king", 4, 2))
+bitBoard.__can_castle
+bitBoard.output_board_formatted
+bitBoard.revert_move()
+
+bitBoard.apply_move(("King", 60, 62))
+bitBoard.__can_castle
+bitBoard.output_board_formatted
+bitBoard.revert_move()
+
+bitBoard.apply_move(("King", 60, 58))
+bitBoard.__can_castle
+bitBoard.output_board_formatted
+bitBoard.revert_move()
+
+"""
+En passant tests
+"""
+board = "....k............................p.p.p.p........PPPPPPPP....K..."
+bitBoard = BitBoard(board)
+bitBoard.output_board_formatted

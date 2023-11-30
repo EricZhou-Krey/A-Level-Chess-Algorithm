@@ -1,7 +1,7 @@
 import bitboard, math
 from icecream import ic
 class Engine:
-    def __init__(self, bitboard_object, PAWN_MATERIAL_WEIGHT=10, BISHOP_MATERIAL_WEIGHT=30, KNIGHT_MATERIAL_WEIGHT=30, ROOK_WIEGHT=50, QUEEN_MATERIAL_WEIGHT=100,
+    def __init__(self, __bitboard_object, PAWN_MATERIAL_WEIGHT=10, BISHOP_MATERIAL_WEIGHT=30, KNIGHT_MATERIAL_WEIGHT=30, ROOK_WIEGHT=50, QUEEN_MATERIAL_WEIGHT=100,
                 #POSITIONAL_WEIGHT - indexed from 0-63, a1 to h8
                 WPAWN_POSITIONAL_WEIGHT = [
                      0,0,0,0,0,0,0,0,
@@ -89,18 +89,18 @@ class Engine:
             "QUEEN" : QUEEN_POSITIONAL_WEIGHT,
             "KING" : KING_POSITIONAL_WEIGHT
         }
-        self.bitboard_object = bitboard_object
+        self.__bitboard_object = __bitboard_object
         self.max_time = math.inf
-        self.current_time = 0
+        self.__current_time = 0
         self.max_depth = math.inf
         self.longest_current_move = 0
-        self.current_best_eval = None
+        self.__current_best_eval = None
     @property
     def material_advantage(self):
         d_material = 0
         w_material = 0
-        for key in self.bitboard_object.bitboard_dict.keys():
-            for index, bit in enumerate(str(format(self.bitboard_object.bitboard_dict[key], "064b"))[::-1]):
+        for key in self.__bitboard_object.bitboard_dict.keys():
+            for index, bit in enumerate(str(format(self.__bitboard_object.bitboard_dict[key], "064b"))[::-1]):
                 if int(bit) == 1:
                     match key:
                         case "pawn":
@@ -128,8 +128,8 @@ class Engine:
     def positional_advantage(self):
         w_positional = 0
         d_positional = 0
-        for key in self.bitboard_object.bitboard_dict.keys():
-            for board_index, bit in enumerate(str(format(self.bitboard_object.bitboard_dict[key], "064b"))[::-1]):
+        for key in self.__bitboard_object.bitboard_dict.keys():
+            for board_index, bit in enumerate(str(format(self.__bitboard_object.bitboard_dict[key], "064b"))[::-1]):
                 if int(bit) == 1:
                     match key:
                         case "pawn":
@@ -173,7 +173,7 @@ class Engine:
     def strategical_advantage(self):
         w_strategical = 0
         d_strategical = 0
-        move_board = self.bitboard_object.move_board
+        move_board = self.__bitboard_object.move_board
         for bit in str(move_board[0])[::-1]:
             if int(bit) == 1:
                 w_strategical += 1
@@ -195,30 +195,29 @@ class Engine:
                       current_colour="WHITE", current_moves=None, current_key_index=None, current_origin_list=None,
                       move_evaluation={}):
         
-        def simulate_next_move(current_depth, current_colour, move_evaluation, bitboard_object, current_best_eval):
+        def simulate_next_move(current_depth, current_colour, move_evaluation, __bitboard_object, __current_best_eval):
             search_move = current_min_max(move_evaluation, current_colour)[1]
-            bitboard_object.apply_move(search_move)
+            __bitboard_object.apply_move(search_move)
             if current_colour == "WHITE":
                 new_colour = "BLACK"
             else:
                 new_colour = "WHITE"
-            new_moves, new_key_index, new_origin_list = get_moves_key_origin(bitboard_object, new_colour)
+            new_moves, new_key_index, new_origin_list = get_moves_key_origin(__bitboard_object, new_colour)
             move_evaluation[search_move] = {}
             move_evaluation[search_move] = self.min_max_dict(
                         current_depth + 1,
                         new_colour, new_moves, new_key_index, new_origin_list,
                         move_evaluation[search_move])
-            
-            current_best_eval = current_min_max(move_evaluation, current_colour)[0]
-            bitboard_object.revert_move()
-            return move_evaluation, current_best_eval
+            __current_best_eval = current_min_max(move_evaluation, current_colour)[0]
+            __bitboard_object.revert_move()
+            return move_evaluation, __current_best_eval
         
-        def get_moves_key_origin(bitboard_object, colour):
+        def get_moves_key_origin(__bitboard_object, colour):
             if colour == "WHITE":
                 move_colour_index = 0
             else:
                 move_colour_index = 1
-            moves, key  = bitboard_object.split_move_dict[move_colour_index]
+            moves, key  = __bitboard_object.split_move_dict[move_colour_index]
             origin_list = list(moves.keys())
             return moves, key, origin_list
         
@@ -244,9 +243,9 @@ class Engine:
                         min_max_move = move
             return min_max, min_max_move
         
-        def is_current_best(move_evaluation, current_colour, current_depth, current_best_eval):
+        def is_current_best(move_evaluation, current_colour, current_depth, __current_best_eval):
             if len(move_evaluation) == 0:
-                return False, current_best_eval
+                return False, __current_best_eval
             if current_depth % 2 == 1:
                 if current_colour == "WHITE":
                     original_colour = "BLACK"
@@ -256,27 +255,27 @@ class Engine:
                 original_colour = current_colour
             min_max = current_min_max(move_evaluation, current_colour)[0]
             if original_colour == current_colour:
-                if original_colour == "WHITE" and min_max >= current_best_eval:
-                    current_best_eval = min_max
-                    return True, current_best_eval
-                elif original_colour == "BLACK" and min_max <= current_best_eval:
-                    current_best_eval = min_max
-                    return True, current_best_eval
+                if original_colour == "WHITE" and min_max >= __current_best_eval:
+                    __current_best_eval = min_max
+                    return True, __current_best_eval
+                elif original_colour == "BLACK" and min_max <= __current_best_eval:
+                    __current_best_eval = min_max
+                    return True, __current_best_eval
             else:
-                return True, current_best_eval
-            return False, current_best_eval
+                return True, __current_best_eval
+            return False, __current_best_eval
         
-        if self.current_time == 0:
-            current_moves, current_key_index, current_origin_list = get_moves_key_origin(self.bitboard_object, current_colour)
+        if self.__current_time == 0:
+            current_moves, current_key_index, current_origin_list = get_moves_key_origin(self.__bitboard_object, current_colour)
             if current_colour == "WHITE":
-                self.current_best_eval = -math.inf
+                self.__current_best_eval = -math.inf
             else:
-                self.current_best_eval = math.inf
+                self.__current_best_eval = math.inf
         
         if len(current_origin_list) == {}:
-            if not(self.bitboard_object.king_safe(False)) and current_colour == "WHITE":
+            if not(self.__bitboard_object.king_safe(False)) and current_colour == "WHITE":
                 return -math.inf
-            elif not(self.bitboard_object.king_safe()) and current_colour == "BLACK":
+            elif not(self.__bitboard_object.king_safe()) and current_colour == "BLACK":
                 return math.inf
             else:
                 return 0.0
@@ -286,7 +285,7 @@ class Engine:
             
         for applied_origin in current_origin_list:
             for applied_to in current_moves[applied_origin]:
-                self.current_time += 1
+                self.__current_time += 1
                 looping = True
                 for name_key in current_key_index:
                     for list_index in range(len(current_key_index[name_key])):
@@ -302,19 +301,19 @@ class Engine:
                     applied_to, promote_key = applied_to
                     applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
                     
-                self.bitboard_object.apply_move(applied_move)
+                self.__bitboard_object.apply_move(applied_move)
                 w_evaluation, d_evaluation = self.total_advantage
                 sum_eval = float(w_evaluation - d_evaluation)
                 move_evaluation[applied_move] = sum_eval
                 
-                self.bitboard_object.revert_move()
+                self.__bitboard_object.revert_move()
                 
         while True:
-            best, self.current_best_eval = is_current_best(move_evaluation, current_colour, current_depth, self.current_best_eval)
-            if self.max_time < self.current_time or current_depth > self.max_depth:
+            best, self.__current_best_eval = is_current_best(move_evaluation, current_colour, current_depth, self.__current_best_eval)
+            if self.max_time < self.__current_time or current_depth > self.max_depth:
                 return move_evaluation
             elif best:
-                move_evaluation, self.current_best_eval = simulate_next_move(current_depth, current_colour, move_evaluation, self.bitboard_object, self.current_best_eval)
+                move_evaluation, self.__current_best_eval = simulate_next_move(current_depth, current_colour, move_evaluation, self.__bitboard_object, self.__current_best_eval)
             else:
                 return move_evaluation
     
@@ -377,7 +376,7 @@ class Engine:
 if __name__ == "__main__":
     board = "...rrbk.p..q.pp..p....np..p..N.....pNPP..P.P......P...QP....RRK."
     bitBoard = bitboard.BitBoard(board)
-    bitBoard.output_board_formatted()
+    bitBoard.output_board_formatted
     engine = Engine(bitBoard)
     engine.max_time = int(input("Enter max time: "))
     #engine.max_depth = int(input("Enter max depth: "))
