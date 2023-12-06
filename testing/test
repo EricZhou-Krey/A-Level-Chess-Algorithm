@@ -30,7 +30,10 @@ bitBoard.output_bitboard_formatted(bitBoard._get_move("king"))
 
 bitBoard.output_bitboard_formatted(bitBoard._get_move("King"))
 
+
+
 bitBoard.move_dict
+
 bitBoard.legal_move_dict
 
 bitBoard._edit_board(("knight", 1, 16))
@@ -81,31 +84,36 @@ Castling tests
 board = "r...k..r................................................R...K..R"
 bitBoard = BitBoard(board)
 bitBoard.output_board_formatted
-bitBoard.__can_castle
+
+bitBoard._BitBoard__can_castle
 
 bitBoard.apply_move(("king", 4, 3))
-bitBoard.__can_castle
 bitBoard.output_board_formatted
+
+bitBoard._BitBoard__can_castle
 
 bitBoard.move_dict
 bitBoard.legal_move_dict
 
+bitBoard._BitBoard__can_castle
+
 bitBoard.revert_move()
 
 bitBoard.apply_move(("king", 4, 2))
-bitBoard.__can_castle
 bitBoard.output_board_formatted
 bitBoard.revert_move()
 
 bitBoard.apply_move(("King", 60, 62))
-bitBoard.__can_castle
 bitBoard.output_board_formatted
 bitBoard.revert_move()
 
+bitBoard._BitBoard__can_castle
+
 bitBoard.apply_move(("King", 60, 58))
-bitBoard.__can_castle
 bitBoard.output_board_formatted
 bitBoard.revert_move()
+
+bitBoard._BitBoard__can_castle
 
 """
 En passant tests

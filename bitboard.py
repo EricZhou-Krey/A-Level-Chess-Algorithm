@@ -166,9 +166,9 @@ class IPiece():
 class BitBoard(IPiece):
     def __init__(self, notationBoard:str) -> None:
         def init_index_to_bitboard(index_board:{str:list[int]}) -> None:
-            self.bitboard_dict = {}
+            self.__bitboard_dict = {}
             for key in index_board.keys():
-                self.bitboard_dict[key] = self._index_board_to_int64(index_board[key])
+                self.__bitboard_dict[key] = self._index_board_to_int64(index_board[key])
                 
         def notation_to_index_board(notationBoard:str) -> {str:list[int]}:
             pieces = ["rook", "knight", "bishop", "queen", "king", "pawn", "Rook", "Pawn", "Bishop", "Knight", "Queen", "King"]
@@ -208,21 +208,34 @@ class BitBoard(IPiece):
             "WHITE" : {"left": True, "right": True}
         }
         self._applied_moves = []
-
-    def _get_move(self, piece:str, opposing:int=0, similar:int=0) -> int:
+    @property
+    def can_castle(self):
+        return self.__can_castle
+    @can_castle.setter
+    def can_castle(self, bool_dict) -> None:
+        self.__can_castle = bool_dict
+    @property
+    def bitboard_dict(self):
+        return self.__bitboard_dict
+    
+    def _get_move(self, piece:str, opposing:int=0, similar:int=0, singular_piece_index:int=-1) -> int:
+        if singular_piece_index > 0:
+            piece_bitboard = 2**singular_piece_index
+        else:
+            piece_bitboard = self.__bitboard_dict[piece]
         match piece.lower():
             case "pawn":
-                return self._get_pawn_bitboard(self.bitboard_dict[piece], not(piece[0].isupper()), opposing, similar)
+                return self._get_pawn_bitboard(piece_bitboard, not(piece[0].isupper()), opposing, similar)
             case "king":
-                return self._get_king_bitboard(self.bitboard_dict[piece], similar, opposing)
+                return self._get_king_bitboard(piece_bitboard, similar, opposing)
             case "knight":
-                return self._get_knight_bitboard(self.bitboard_dict[piece], similar)
+                return self._get_knight_bitboard(piece_bitboard, similar)
             case "bishop":
-                return self._get_bishop_bitboard(self.bitboard_dict[piece], opposing, similar)
+                return self._get_bishop_bitboard(piece_bitboard, opposing, similar)
             case "rook":
-                return self._get_rook_bitboard(self.bitboard_dict[piece], opposing, similar)
+                return self._get_rook_bitboard(piece_bitboard, opposing, similar)
             case "queen":
-                return self._get_queen_bitboard(self.bitboard_dict[piece], opposing, similar)
+                return self._get_queen_bitboard(piece_bitboard, opposing, similar)
             case _:
                 return -1
 
@@ -254,17 +267,17 @@ class BitBoard(IPiece):
             origin_to_bit = origin_bit
             
         if promote_key != "":
-            self.bitboard_dict[promote_key] |= to_bit
+            self.__bitboard_dict[promote_key] |= to_bit
         
         pw_board, pd_board = self._combined_board
         _combined_board = pw_board | pd_board
         if _combined_board ^ to_bit < _combined_board:
-            for key in self.bitboard_dict.keys():
-                if self.bitboard_dict[key] & to_bit > 0:
-                    self.bitboard_dict[key] ^= to_bit
+            for key in self.__bitboard_dict.keys():
+                if self.__bitboard_dict[key] & to_bit > 0:
+                    self.__bitboard_dict[key] ^= to_bit
                     break
                 
-        self.bitboard_dict[piece] ^= origin_to_bit
+        self.__bitboard_dict[piece] ^= origin_to_bit
 
     def apply_move(self, move:tuple) -> None:
         """
@@ -294,19 +307,17 @@ class BitBoard(IPiece):
             origin_to_bit = origin_bit
         
         if promote_key != "":
-            self.bitboard_dict[promote_key] |= to_bit
+            self.__bitboard_dict[promote_key] |= to_bit
 
         pw_board, pd_board = self._combined_board
         combined_board = pw_board | pd_board
         captured = False
         capture_key = None
         if combined_board ^ to_bit < combined_board:
-            for capture_key in self.bitboard_dict.keys():
-                self.output_bitboard_formatted(to_bit)
-                self.output_bitboard_formatted(self.bitboard_dict[capture_key])
-                if self.bitboard_dict[capture_key] & to_bit > 0:
+            for capture_key in self.__bitboard_dict.keys():
+                if self.__bitboard_dict[capture_key] & to_bit > 0:
                     capture_to_bit = to_bit
-                    self.bitboard_dict[capture_key] ^= capture_to_bit
+                    self.__bitboard_dict[capture_key] ^= capture_to_bit
                     captured = True
                     break
                 
@@ -314,15 +325,15 @@ class BitBoard(IPiece):
             if piece[0].isupper():
                 capture_key = "pawn"
                 capture_to_bit = to_bit << 8
-                self.bitboard_dict[capture_key] ^= capture_to_bit
+                self.__bitboard_dict[capture_key] ^= capture_to_bit
                 captured = True
             else:
                 capture_key = "Pawn"
                 capture_to_bit = to_bit >> 8
-                self.bitboard_dict[capture_key] ^= capture_to_bit
+                self.__bitboard_dict[capture_key] ^= capture_to_bit
                 captured = True
         
-        self.bitboard_dict[piece] ^= origin_to_bit
+        self.__bitboard_dict[piece] ^= origin_to_bit
         
         """
         Next, castling validity is updated if:
@@ -421,7 +432,7 @@ class BitBoard(IPiece):
             piece, origin_index, to_index = move
             revert_move = (piece, to_index, origin_index)
         else:
-            piece, origin_index, to_index = move[:2]
+            piece, origin_index, to_index = move[:3]
             if piece[0].isupper():
                 revert_move = (piece, to_index, origin_index, "Pawn")
             else:
@@ -430,7 +441,7 @@ class BitBoard(IPiece):
         self._edit_board(revert_move)
         
         if captured:
-            self.bitboard_dict[capture_key] |= capture_bit
+            self.__bitboard_dict[capture_key] |= capture_bit
         
         """
         Next, castling validity is updated if:
@@ -505,15 +516,15 @@ class BitBoard(IPiece):
         """
         
         if isWhite:
-            if self.bitboard_dict["king"] == 0:
+            if self.__bitboard_dict["king"] == 0:
                 return False
             else:
-                king_origin = int(math.log2(self.bitboard_dict["king"]))
+                king_origin = int(math.log2(self.__bitboard_dict["king"]))
         else:
-            if self.bitboard_dict["King"] == 0:
+            if self.__bitboard_dict["King"] == 0:
                 return False
             else:
-                king_origin = int(math.log2(self.bitboard_dict["King"]))
+                king_origin = int(math.log2(self.__bitboard_dict["King"]))
                 
         move_dict = self.move_dict[0]
         for origin in move_dict.keys():
@@ -561,8 +572,8 @@ class BitBoard(IPiece):
         pawn = p, knight = n, bishop = b, rook = r, queen = q, king = k and black pieces have a starting captial
         """
         board = ["." for x in range(64)]
-        for piece_key in self.bitboard_dict.keys():
-            for index, bit in enumerate(str(format(self.bitboard_dict[piece_key], "064b"))[::-1]):
+        for piece_key in self.__bitboard_dict.keys():
+            for index, bit in enumerate(str(format(self.__bitboard_dict[piece_key], "064b"))[::-1]):
                 if int(bit) == 1:
                     match piece_key:
                         case "knight":
@@ -588,16 +599,16 @@ class BitBoard(IPiece):
         white, dark = self._combined_board
         key_to_index = {}
         move_dictionary = {}
-        for key in self.bitboard_dict.keys():
+        for key in self.__bitboard_dict.keys():
             key_to_index[key] = []
-            for index, bit in enumerate(str(format(self.bitboard_dict[key], "064b"))[::-1]):
+            for index, bit in enumerate(str(format(self.__bitboard_dict[key], "064b"))[::-1]):
                 if int(bit) == 1:
                     key_to_index[key].append(index)
                     move_dictionary[index] = []
                     if key[0].isupper():
-                        move_board = str(format(self._get_move(key, white, dark), "064b"))[::-1]
+                        move_board = str(format(self._get_move(key, white, dark, index), "064b"))[::-1]
                     else:
-                        move_board = str(format(self._get_move(key, dark, white), "064b"))[::-1]
+                        move_board = str(format(self._get_move(key, dark, white, index), "064b"))[::-1]
                     for move_index, m_bit in enumerate(move_board):
                         if int(m_bit) == 1:
                             if key == "Pawn" and (2**move_index & self._file_edge_bitboard["1"]) > 0:
@@ -610,6 +621,7 @@ class BitBoard(IPiece):
                                     move_dictionary[index].append((move_index, promote_key))
                             else:
                                 move_dictionary[index].append(move_index)
+                                
         return move_dictionary, key_to_index
     @property
     def legal_move_dict(self) -> ({int:int}, {str:int}):
@@ -639,11 +651,16 @@ class BitBoard(IPiece):
                 legal = True
                 if type(to_promote) is tuple:
                     move = (piece_key, origin, to_promote[0], to_promote[1])
+                    revert_move = (to_promote[1], to_promote[0], origin, piece_key)
                 else:
                     move = (piece_key, origin, to_promote)
+                    revert_move = (piece_key, to_promote, origin)
+                    
+                #self._edit_board(move)
                 self.apply_move(move)
                 legal = self.king_safe(isWhite)
                 self.revert_move()
+                #self._edit_board(revert_move)
                 
                 """
                 Caslting requirements:
@@ -661,10 +678,14 @@ class BitBoard(IPiece):
                         to_tile_between = 1
                         if not(self.__can_castle[colour]["right"]):
                             legal = False
+                    move = (piece_key, origin, origin+to_tile_between)
+                    revert_move = (piece_key, origin+to_tile_between, origin)
                     legal = legal and self.king_safe(isWhite)
-                    self.apply_move((piece_key , origin, origin+to_tile_between))
+                    #self._edit_board(move)
+                    self.apply_move(move)
                     legal = legal and self.king_safe(isWhite)
                     self.revert_move()
+                    #self._edit_board(revert_move)
                     
                 """
                 En-passant requirements:
@@ -674,15 +695,13 @@ class BitBoard(IPiece):
                 - Last move moved exactly 2 north or 2 south (shift of +-16 indexes)
                 """
                 
-                if piece_key.lower() == "pawn" and (abs(move[1] - move[2]) == 7 or abs(move[1] - move[2]) == 9):
+                if piece_key.lower() == "pawn" and ((abs(move[1] - move[2]) == 7 or abs(move[1] - move[2]) == 9)):
                     if len(self._applied_moves) > 0:
                         if len(self._applied_moves[len(self._applied_moves)-1]) == 3:
                             last_piece, last_origin, last_to = self._applied_moves[len(self._applied_moves)-1][:3]
                             en_passant = (last_to % 8 == move[2] % 8 and last_to // 8 == move[1] // 8) and last_piece.lower() == "pawn" and abs(last_origin - last_to) == 16
                             taking = move[2] in move_dictionary.keys()
-                            if en_passant or taking:
-                                legal = True
-                            else:
+                            if not(en_passant or taking):
                                 legal = False
                         
                 if legal == True:
@@ -737,11 +756,11 @@ class BitBoard(IPiece):
     def _combined_board(self) -> (int, int):
         pw_board = 0
         pd_board = 0
-        for key in self.bitboard_dict.keys():
+        for key in self.__bitboard_dict.keys():
             if key[0].isupper():
-                pd_board |= self.bitboard_dict[key]
+                pd_board |= self.__bitboard_dict[key]
             else:
-                pw_board |= self.bitboard_dict[key]
+                pw_board |= self.__bitboard_dict[key]
         return pw_board, pd_board
     
 if __name__ == "__main__":
