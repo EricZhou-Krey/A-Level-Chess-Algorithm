@@ -207,15 +207,15 @@ class BitBoard(IPiece):
             "BLACK" : {"left": True, "right": True},
             "WHITE" : {"left": True, "right": True}
         }
-        self._applied_moves = []
+        self.__applied_moves = []
     @property
-    def can_castle(self):
+    def applied_moves(self) -> list:
+        return self.__applied_moves
+    @property
+    def can_castle(self) -> dict:
         return self.__can_castle
-    @can_castle.setter
-    def can_castle(self, bool_dict) -> None:
-        self.__can_castle = bool_dict
     @property
-    def bitboard_dict(self):
+    def bitboard_dict(self) -> dict:
         return self.__bitboard_dict
     
     def _get_move(self, piece:str, opposing:int=0, similar:int=0, singular_piece_index:int=-1) -> int:
@@ -404,12 +404,12 @@ class BitBoard(IPiece):
                 self.__can_castle["WHITE"]["left"] = (False, self.__can_castle["WHITE"]["left"])        
         
         """
-        Lastly, appends the applied move, with or without captured piece to "self._applied_moves"
+        Lastly, appends the applied move, with or without captured piece to "self.__applied_moves"
         """
         if captured == True:
-            self._applied_moves.append((move, (capture_key, capture_to_bit)))
+            self.__applied_moves.append((move, (capture_key, capture_to_bit)))
         else:
-            self._applied_moves.append(move)
+            self.__applied_moves.append(move)
 
     def revert_move(self) -> None:
         """
@@ -422,7 +422,7 @@ class BitBoard(IPiece):
         
         Lastly, the captured piece is added back to where it used to be
         """
-        move = self._applied_moves.pop()
+        move = self.__applied_moves.pop()
         captured = False
         capture_key = None
         if len(move) == 2:
@@ -533,22 +533,6 @@ class BitBoard(IPiece):
                     return False
         return True
 
-    def output_bitboard_formatted(self, bitboard:int=-1) -> None:
-        """
-        For debugging purposes, outputs 64bit integers as an 8 by 8 chess grid of 0s and 1s 
-        Defaults to display the location of pieces on the bitboard
-        """
-        if bitboard == -1:
-            bitboard = self._combined_board[0]|self._combined_board[1]
-            
-        board = format(bitboard, "064b")
-        for row in range(0,(len(board)//8)):
-            if row*8-1 < 0:
-                print(" ".join(board[((row+1)*8)-1::-1]), row)
-            else:
-                print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
-        print(" ".join("ABCDEFGH"))
-
     def number_to_algrebra_notation(self, move:tuple) -> tuple:
         if len(move) == 3:
             piece, origin, to = move
@@ -565,12 +549,31 @@ class BitBoard(IPiece):
             return piece, origin_file+origin_rank, to_file+to_rank, promote_key
         else:
             return piece, origin_file+origin_rank, to_file+to_rank
+
+    def bitboard_formatted(self, bitboard:int=-1) -> str:
+        """
+        For debugging purposes, outputs 64bit integers as an 8 by 8 chess grid of 0s and 1s 
+        Defaults to display the location of pieces on the bitboard
+        """
+        result = ""
+        if bitboard == -1:
+            bitboard = self._combined_board[0]|self._combined_board[1]
+            
+        board = format(bitboard, "064b")
+        for row in range(0,(len(board)//8)):
+            if row*8-1 < 0:
+                result += " ".join(board[((row+1)*8)-1::-1]) + " " + str(row) + "\n"
+            else:
+                result += " ".join(board[((row+1)*8)-1:row*8-1:-1]) + " " + str(row) + "\n"
+        result += " ".join("ABCDEFGH") + "\n"
+        return result
     @property
-    def output_board_formatted(self) -> None:
+    def board_formatted(self) -> str:
         """
         For debugging purposes, outputs pieces as an 8 by 8 chess board where:
         pawn = p, knight = n, bishop = b, rook = r, queen = q, king = k and black pieces have a starting captial
         """
+        result = ""
         board = ["." for x in range(64)]
         for piece_key in self.__bitboard_dict.keys():
             for index, bit in enumerate(str(format(self.__bitboard_dict[piece_key], "064b"))[::-1]):
@@ -584,10 +587,11 @@ class BitBoard(IPiece):
                             board[63-index] = piece_key[0]
         for row in range(0,(len(board)//8)):
             if row*8-1 < 0:
-                print(" ".join(board[((row+1)*8)-1::-1]), row)
+                result += " ".join(board[((row+1)*8)-1::-1]) + " " + str(row) + "\n"
             else:
-                print(" ".join(board[((row+1)*8)-1:row*8-1:-1]), row)
-        print(" ".join("ABCDEFGH"))
+                result += " ".join(board[((row+1)*8)-1:row*8-1:-1]) + " " + str(row) + "\n"
+        result += " ".join("ABCDEFGH") + "\n"
+        return result
     @property
     def move_dict(self) -> ({int:int}, {str:int}):
         """
@@ -651,16 +655,12 @@ class BitBoard(IPiece):
                 legal = True
                 if type(to_promote) is tuple:
                     move = (piece_key, origin, to_promote[0], to_promote[1])
-                    revert_move = (to_promote[1], to_promote[0], origin, piece_key)
                 else:
                     move = (piece_key, origin, to_promote)
-                    revert_move = (piece_key, to_promote, origin)
                     
-                #self._edit_board(move)
                 self.apply_move(move)
                 legal = self.king_safe(isWhite)
                 self.revert_move()
-                #self._edit_board(revert_move)
                 
                 """
                 Caslting requirements:
@@ -679,13 +679,10 @@ class BitBoard(IPiece):
                         if not(self.__can_castle[colour]["right"]):
                             legal = False
                     move = (piece_key, origin, origin+to_tile_between)
-                    revert_move = (piece_key, origin+to_tile_between, origin)
                     legal = legal and self.king_safe(isWhite)
-                    #self._edit_board(move)
                     self.apply_move(move)
                     legal = legal and self.king_safe(isWhite)
                     self.revert_move()
-                    #self._edit_board(revert_move)
                     
                 """
                 En-passant requirements:
@@ -696,9 +693,9 @@ class BitBoard(IPiece):
                 """
                 
                 if piece_key.lower() == "pawn" and ((abs(move[1] - move[2]) == 7 or abs(move[1] - move[2]) == 9)):
-                    if len(self._applied_moves) > 0:
-                        if len(self._applied_moves[len(self._applied_moves)-1]) == 3:
-                            last_piece, last_origin, last_to = self._applied_moves[len(self._applied_moves)-1][:3]
+                    if len(self.__applied_moves) > 0:
+                        if len(self.__applied_moves[len(self.__applied_moves)-1]) == 3:
+                            last_piece, last_origin, last_to = self.__applied_moves[len(self.__applied_moves)-1][:3]
                             en_passant = (last_to % 8 == move[2] % 8 and last_to // 8 == move[1] // 8) and last_piece.lower() == "pawn" and abs(last_origin - last_to) == 16
                             taking = move[2] in move_dictionary.keys()
                             if not(en_passant or taking):
