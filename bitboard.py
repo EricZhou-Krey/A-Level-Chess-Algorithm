@@ -214,6 +214,9 @@ class BitBoard(IPiece):
     @property
     def can_castle(self) -> dict:
         return self.__can_castle
+    @can_castle.setter
+    def can_castle(self, can_castle_dict) -> None:
+        self.__can_castle = can_castle_dict
     @property
     def bitboard_dict(self) -> dict:
         return self.__bitboard_dict
