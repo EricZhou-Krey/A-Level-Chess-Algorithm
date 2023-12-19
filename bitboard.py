@@ -700,6 +700,8 @@ class BitBoard(IPiece):
                             taking = move[2] in move_dictionary.keys()
                             if not(en_passant or taking):
                                 legal = False
+                    else:
+                        legal = False
                         
                 if legal == True:
                     if not(origin in legal_move_dict.keys()):

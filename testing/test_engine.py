@@ -1,6 +1,7 @@
 import sys
 sys.path.append("../A-Level-Chess-Algorithm")
 from enginepy import Engine
+from bitboard import BitBoard
 import icecream as ic
 
 def test_default():

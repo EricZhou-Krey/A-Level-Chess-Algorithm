@@ -1,103 +1,21 @@
-import math, time
+import math, time, json, numpy
 from bitboard import BitBoard
 from icecream import ic
 class Engine:
-    def __init__(self, bitboard:BitBoard, PAWN_MATERIAL_WEIGHT:float=10, BISHOP_MATERIAL_WEIGHT:float=30, KNIGHT_MATERIAL_WEIGHT:float=30, ROOK_WIEGHT:float=50, QUEEN_MATERIAL_WEIGHT:float=100, KING_MATERIAL_WEIGHT:float=0,
-                #POSITIONAL_WEIGHT - indexed from 0-63, a1 to h8
-                WPAWN_POSITIONAL_WEIGHT : list = [
-                     0,0,0,0,0,0,0,0,
-                     1,1,1,1,1,1,1,1,
-                     2,2,2,2,2,2,2,2,
-                     3,3,3,3,3,3,3,3,
-                     4,4,4,4,4,4,4,4,
-                     5,5,5,5,5,5,5,5,
-                     6,6,6,6,6,6,6,6,
-                     7,7,7,7,7,7,7,7
-                ],
-                DPAWN_POSITIONAL_WEIGHT : list = [
-                     7,7,7,7,7,7,7,7,
-                     6,6,6,6,6,6,6,6,
-                     5,5,5,5,5,5,5,5,
-                     4,4,4,4,4,4,4,4,
-                     3,3,3,3,3,3,3,3,
-                     2,2,2,2,2,2,2,2,
-                     1,1,1,1,1,1,1,1,
-                     0,0,0,0,0,0,0,0
-                ],
-                BISHOP_POSITIONAL_WEIGHT : list = [
-                     0,1,2,3,3,2,1,0,
-                     1,2,3,4,4,3,2,1,
-                     2,3,4,5,5,4,3,2,
-                     3,4,5,6,6,5,4,3,
-                     3,4,5,6,6,5,4,3,
-                     2,3,4,5,5,4,3,2,
-                     1,2,3,4,4,3,2,1,
-                     0,1,2,3,3,2,1,0
-                ],
-                KNIGHT_POSITIONAL_WEIGHT : list = [
-                     0,1,2,2,2,2,1,0,
-                     1,2,4,4,4,4,2,1,
-                     2,4,6,6,6,6,4,2,
-                     2,4,6,6,6,6,4,2,
-                     2,4,6,6,6,6,4,2,
-                     2,4,6,6,6,6,4,2,
-                     1,2,4,4,4,4,2,1,
-                     0,1,2,2,2,2,1,0
-                ],
-                ROOK_POSITIONAL_WEIGHT : list = [
-                     0,0,0,0,0,0,0,0,
-                     0,1,1,1,1,1,1,0,
-                     0,1,2,2,2,2,1,0,
-                     0,1,2,3,3,2,1,0,
-                     0,1,2,3,3,2,1,0,
-                     0,1,2,2,2,2,1,0,
-                     0,1,1,1,1,1,1,0,
-                     0,0,0,0,0,0,0,0
-                ],
-                QUEEN_POSITIONAL_WEIGHT : list = [
-                     0,1,2,3,3,2,1,0,
-                     1,3,4,5,5,4,3,1,
-                     2,4,6,7,7,6,4,2,
-                     3,5,7,9,9,7,5,3,
-                     3,5,7,9,9,7,5,3,
-                     2,4,6,7,7,6,4,2,
-                     1,3,4,5,5,4,3,1,
-                     0,1,2,3,3,2,1,0
-                ],
-                KING_POSITIONAL_WEIGHT : list = [ 
-                     0,0,0,0,0,0,0,0,
-                     0,1,1,1,1,1,1,0,
-                     0,1,2,2,2,2,1,0,
-                     0,1,2,3,3,2,1,0,
-                     0,1,2,3,3,2,1,0,
-                     0,1,2,2,2,2,1,0,
-                     0,1,1,1,1,1,1,0,
-                     0,0,0,0,0,0,0,0
-                ]) -> None:
+    def __init__(self, bitboard:BitBoard) -> None:
         """
-        Weight masks and values are assigned here to work out the advanatge of any given position
+        Weight masks and values are loaded here to work out the advanatge of any given position
         In addition, the "max_num_searched", "max_depth" and "max_time" public variables can be 
         used to terminate the mini-max search according to certain cretia, being the number of moves
         ahead of the current positon searched (depth) and amount of moves searched (time)
         """
-        self.__PIECE_MATERIAL_WEIGHT = {
-            "PAWN" : PAWN_MATERIAL_WEIGHT,
-            "BISHOP" : BISHOP_MATERIAL_WEIGHT,
-            "KNIGHT" : KNIGHT_MATERIAL_WEIGHT,
-            "ROOK" : ROOK_WIEGHT,
-            "QUEEN" : QUEEN_MATERIAL_WEIGHT,
-            "KING" : KING_MATERIAL_WEIGHT
-        }
-        self.__POSITION_WEIGHT = {
-            "WPAWN" : WPAWN_POSITIONAL_WEIGHT,
-            "DPAWN" : DPAWN_POSITIONAL_WEIGHT,
-            "BISHOP" : BISHOP_POSITIONAL_WEIGHT,
-            "KNIGHT" : KNIGHT_POSITIONAL_WEIGHT,
-            "ROOK" : ROOK_POSITIONAL_WEIGHT,
-            "QUEEN" : QUEEN_POSITIONAL_WEIGHT,
-            "KING" : KING_POSITIONAL_WEIGHT
-        }
-        with open("")
+        
+        with open("engine_weight.json", "r") as engine_weight:
+            engine_data = engine_weight.read()
+        engine_data = json.loads(engine_data)
+        self.__PIECE_MATERIAL_WEIGHT = engine_data["PIECE_MATERIAL_WEIGHT"]
+        self.__PIECE_POSITIONAL_WEIGHT = engine_data["PIECE_POSITIONAL_WEIGHT"]
+        
         self.bitboard = bitboard
         self.max_num_searched = math.inf
         self.__num_searched = 0
@@ -107,10 +25,6 @@ class Engine:
         self.__current_highest_depth =  1
         self.__alpha = math.inf #upper bound for black
         self.__beta = -math.inf #lower bound for white
-        self.__ordered_eval_move = []
-    @property
-    def ordered_eval_move(self) -> list:
-        return self.__ordered_eval_move
     @property
     def material_advantage(self) -> (float, float):
         """
@@ -140,14 +54,14 @@ class Engine:
                 if int(bit) == 1:
                     if key[0].isupper():
                         if key == "Pawn":
-                            d_positional += self.__POSITION_WEIGHT["DPAWN"][board_index]
+                            d_positional += self.__PIECE_POSITIONAL_WEIGHT["DPAWN"][board_index]
                         else:
-                            d_positional += self.__POSITION_WEIGHT[key.upper()][board_index]
+                            d_positional += self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index]
                     else:
                         if key == "pawn":
-                            w_positional += self.__POSITION_WEIGHT["WPAWN"][board_index]
+                            w_positional += self.__PIECE_POSITIONAL_WEIGHT["WPAWN"][board_index]
                         else:
-                            w_positional += self.__POSITION_WEIGHT[key.upper()][board_index]
+                            w_positional += self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index]
         return w_positional, d_positional
     @property
     def strategical_advantage(self) -> (float, float):
@@ -183,6 +97,7 @@ class Engine:
                       current_depth:int=0,
                       current_colour:str="WHITE", current_moves=None, current_key_index=None, current_origin_list=None,
                       move_evaluation:dict={}):
+        
         def simulate_next_move(current_depth, current_colour, move_evaluation, search_move) -> dict:
             """
             Extends the move tree by finding the current best move on the current position,
@@ -217,28 +132,6 @@ class Engine:
             moves, key  = bitboard.split_move_dict[move_colour_index]
             origin_list = list(moves.keys())
             return moves, key, origin_list
-                    
-        def insert_to_ordered_eval_move(evaluation:float, move_list:list, low=None, high=None) -> None:
-            if None in [low, high]:
-                low = 0
-                high = len(self.__ordered_eval_move)-1
-                if high < 0:
-                    self.__ordered_eval_move.insert(low, (move_list, evaluation))
-                    return
-                
-            if high >= low:
-                mid = (low + high) // 2
-                ordered_evaluation = self.__ordered_eval_move[mid][1]
-                if ordered_evaluation == evaluation:
-                    self.__ordered_eval_move.insert(mid, (move_list, sum_eval))
-                elif ordered_evaluation > evaluation:
-                    insert_to_ordered_eval_move(evaluation, move_list, low, mid-1)
-                else:
-                    insert_to_ordered_eval_move(evaluation, move_list, mid+1, high)
-            elif evaluation > self.__ordered_eval_move[high][1] or high < 0:
-                self.__ordered_eval_move.insert(low, (move_list, evaluation))
-            else:
-                self.__ordered_eval_move.insert(high, (move_list, evaluation))
 
         def within_alpha_beta(colour:str, evaluation:float) -> bool:
             if (colour == "BLACK" and evaluation >= self.__beta) or (colour == "WHITE" and evaluation <= self.__alpha):
@@ -258,6 +151,11 @@ class Engine:
                 self.__beta = max(self.__beta, best_move_eval)
         
         def sort_move_evaluation_keys(move_evaluation:dict) -> list:
+            """
+            Sorts the evaluation of moves in move evaluations to be "stand pat" being the middle evaluations move
+            going from the middle outward, explained why in documentation
+            """
+            
             def merge_sort(num_list:float):
                 def compare(num_list:list, left:list, right:list, left_pointer:int=0, right_pointer:int=0, list_pointer:int=0):
                     if left_pointer >= len(left) or right_pointer >= len(right):
@@ -302,13 +200,28 @@ class Engine:
                 return evaluation_list
             
             evaluation_list = [eval for eval in move_evaluation.values()]
+            for eval in evaluation_list:
+                if not(type(eval) is float):
+                    return move_evaluation.keys()
+                
             if type(evaluation_list[0]) is float:
                 evaluation_list = merge_sort(evaluation_list)
                 evaluation_list = remove_duplicates(evaluation_list)
                 
+                vector = []
+                mid = len(evaluation_list) / 2
+                for index in range(math.floor(mid)):
+                    vector.append(math.floor(mid)-index)
+                    vector.append(math.ceil(mid)+index)
+                if mid % 1 == 0:
+                    del vector[0]
+                vector.append(0)
+                
+                evaluation_list = numpy.array(evaluation_list)
+                vector = numpy.array(vector)
+                
                 ordered_move_list = []
-                #incorrect ordering
-                for evaluation in evaluation_list:
+                for evaluation in evaluation_list[vector]:
                     for move in [key for key, value in move_evaluation.items() if value == evaluation]:
                         ordered_move_list.append(move)
                         
@@ -364,7 +277,6 @@ class Engine:
                     else:
                         applied_to, promote_key = applied_to
                         applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
-                        
                     self.bitboard.apply_move(applied_move)
                     w_evaluation, d_evaluation = self.total_advantage
                     sum_eval = float(w_evaluation - d_evaluation)
@@ -375,23 +287,21 @@ class Engine:
                             move_list.append(move_capture)
                         else:
                             move_list.append(move_capture[0])
-                    insert_to_ordered_eval_move(sum_eval, move_list)
+                            
                     self.bitboard.revert_move()
                     
                     if not(within_alpha_beta(current_colour, sum_eval)):
                         return move_evaluation
                 
         """
-        Finally, while the current tree is the best possible tree, the algorithm recursively searchs through different branches appending the evaluation
-        on the move evaluation dictionary until a base case is reached either the current time (amount of searched moves) exceeds that of the max time set
-        by the user, the current max depth exceeds the max depth set by the user or the current time spent exceeds the max time set by the user
+        Finally, the recursion is defined by first checking: the current depth is not beyond what it has previously checked,
+        sorting the moves to optimize alpha beta pruning, simulating every move in said order, the updating recursion parameters
         """
         
         while current_depth < self.__current_highest_depth:
+            
             sorted_moves = sort_move_evaluation_keys(move_evaluation)
             for search_move in sorted_moves:
-                if self.bitboard.applied_moves in self.__ordered_eval_move:
-                    self.__ordered_eval_move.remove(self.bitboard.applied_moves)
                 
                 move_evaluation = simulate_next_move(current_depth, current_colour, move_evaluation, search_move)
                 
@@ -403,15 +313,49 @@ class Engine:
                     update_alpha_beta(current_colour, move_evaluation, search_move)
             
             if current_depth == 0:
-                self.__alpha = math.inf
-                self.__beta = -math.inf
                 self.__current_highest_depth += 1
                 
             if not(within_maxes):
                 break
                 
         return move_evaluation
+    
+    def ordered_move_eval(self, move_evaluation):
+        def insert_index(num:float, num_list:list, low:int=None, mid:int=None, high:int=None):
+            if None in [low, high, mid]:
+                low = 0
+                high = len(num_list)-1
+                if high < low:
+                    return 0
+                
+            if high >= low:
+                mid = (low + high) // 2
+                if num == num_list[mid]:
+                    return mid
+                elif num > num_list[mid]:
+                    return insert_index(num, num_list, mid+1, mid, high)
+                else:
+                    return insert_index(num, num_list, low, mid, mid-1)
+            elif num > num_list[high] or high < 0:
+                return low
+            else:
+                return high
+                    
+        ordered_move_eval = []
+        for move in move_evaluation.keys():
+            if type(move_evaluation[move]) is float:
+                ordered_move_eval.insert(insert_index(move_evaluation[move], [move_eval[1] for move_eval in ordered_move_eval]), (move, move_evaluation[move]))
+            else:
+                ordered_move_eval.insert( ordered_move_eval(move_evaluation[move]))
+        return ordered_move_eval
+
 
 if __name__ == "__main__":
-    while True:
-        pass
+    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+    #board = "...r.rk.pp...p.......n.p..q...p.P.Pp..........PP..P.B.P.R..Q.RK."
+    bitBoard = BitBoard(board)
+    print(bitBoard.board_formatted)
+    engine = Engine(bitBoard)
+    engine.max_time = int(input("Enter max time for search: "))
+    move_evaluation = engine.min_max_dict(current_colour="WHITE")
+    print()
