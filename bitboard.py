@@ -164,46 +164,24 @@ class IPiece():
         return move
 
 class BitBoard(IPiece):
-    def __init__(self, notationBoard:str) -> None:
+    def __init__(self, notation_board:str) -> None:
         def init_index_to_bitboard(index_board:{str:list[int]}) -> None:
             self.__bitboard_dict = {}
             for key in index_board.keys():
                 self.__bitboard_dict[key] = self._index_board_to_int64(index_board[key])
                 
-        def notation_to_index_board(notationBoard:str) -> {str:list[int]}:
+        def notation_to_index_board(notation_board:str) -> {str:list[int]}:
             pieces = ["rook", "knight", "bishop", "queen", "king", "pawn", "Rook", "Pawn", "Bishop", "Knight", "Queen", "King"]
             piece_index_board = dict(zip(pieces, [[] for key in range(len(pieces))]))
-            for index, notation in enumerate(notationBoard):
-                match notation:
-                    case "r":
-                        piece_index_board["rook"].append(index)
-                    case "n":
-                        piece_index_board["knight"].append(index)
-                    case "b":
-                        piece_index_board["bishop"].append(index)
-                    case "q":
-                        piece_index_board["queen"].append(index)
-                    case "p":
-                        piece_index_board["pawn"].append(index)
-                    case "k":
-                        piece_index_board["king"].append(index)
-                    case "R":
-                        piece_index_board["Rook"].append(index)
-                    case "N":
-                        piece_index_board["Knight"].append(index)
-                    case "B":
-                        piece_index_board["Bishop"].append(index)
-                    case "P":
-                        piece_index_board["Pawn"].append(index)
-                    case "K":
-                        piece_index_board["King"].append(index)
-                    case "Q":
-                        piece_index_board["Queen"].append(index)
+            notation_to_key = {"r":"rook", "n":"knight", "b":"bishop", "q":"queen", "k":"king", "p":"pawn", "R":"Rook", "P":"Pawn", "B":"Bishop", "N":"Knight", "Q":"Queen", "K":"King"}
+            for index, notation in enumerate(notation_board):
+                if notation in notation_to_key.keys():
+                    piece_index_board[notation_to_key[notation]].append(index)
             return piece_index_board
         
         super().__init__()
-        init_index_to_bitboard(notation_to_index_board(notationBoard)) #lowercase = white, Uppercase = Black
-        self.__can_castle = {
+        init_index_to_bitboard(notation_to_index_board(notation_board)) #lowercase = white, Uppercase = Black
+        self.can_castle = {
             "BLACK" : {"left": True, "right": True},
             "WHITE" : {"left": True, "right": True}
         }
@@ -211,9 +189,6 @@ class BitBoard(IPiece):
     @property
     def applied_moves(self) -> list:
         return self.__applied_moves
-    @property
-    def can_castle(self) -> dict:
-        return self.__can_castle
     @property
     def bitboard_dict(self) -> dict:
         return self.__bitboard_dict
@@ -340,8 +315,9 @@ class BitBoard(IPiece):
         - Rook has been moved from its starting position or
         - Rook was taken from its starting position
         - King is moved from starting position or castled
-        In which case, the "self.__can_castle" is updated with a nested False that can be unpack to see when someone can castle
+        In which case, the "self.can_castle" is updated with a nested False that can be unpack to see when someone can castle
         """
+        
         castle_capture = castle_rook = False
         if piece.lower() == "rook" and origin_index in [0,7,56,63]:
             castle_rook = True
@@ -373,8 +349,9 @@ class BitBoard(IPiece):
                 case 63:
                     castle_colour = "BLACK"
                     castle_direction = "right"
+                    
         if castle_rook or castle_capture:
-            self.__can_castle[castle_colour][castle_direction] = (False, self.__can_castle[castle_colour][castle_direction])
+            self.can_castle[castle_colour][castle_direction] = (False, self.can_castle[castle_colour][castle_direction])
         
         if piece.lower() == "king":
             if abs(origin_index - to_index) == 2:
@@ -391,17 +368,18 @@ class BitBoard(IPiece):
                 if castle_origin >= 0 and castle_to >= 0:
                     self._edit_board((castle_piece, castle_origin, castle_to))
                     if piece[0].isupper():
-                        self.__can_castle["BLACK"]["right"] = (False, self.__can_castle["BLACK"]["right"])
-                        self.__can_castle["BLACK"]["left"] = (False, self.__can_castle["BLACK"]["left"])
+                        self.can_castle["BLACK"]["right"] = (False, self.can_castle["BLACK"]["right"])
+                        self.can_castle["BLACK"]["left"] = (False, self.can_castle["BLACK"]["left"])
                     else:
-                        self.__can_castle["WHITE"]["right"] = (False, self.__can_castle["WHITE"]["right"])
-                        self.__can_castle["WHITE"]["left"] = (False, self.__can_castle["WHITE"]["left"])
+                        self.can_castle["WHITE"]["right"] = (False, self.can_castle["WHITE"]["right"])
+                        self.can_castle["WHITE"]["left"] = (False, self.can_castle["WHITE"]["left"])
+                        
             elif origin_index == 60:
-                self.__can_castle["BLACK"]["right"] = (False, self.__can_castle["BLACK"]["right"])
-                self.__can_castle["BLACK"]["left"] = (False, self.__can_castle["BLACK"]["left"])
+                self.can_castle["BLACK"]["right"] = (False, self.can_castle["BLACK"]["right"])
+                self.can_castle["BLACK"]["left"] = (False, self.can_castle["BLACK"]["left"])
             elif origin_index == 4:
-                self.__can_castle["WHITE"]["right"] = (False, self.__can_castle["WHITE"]["right"])
-                self.__can_castle["WHITE"]["left"] = (False, self.__can_castle["WHITE"]["left"])        
+                self.can_castle["WHITE"]["right"] = (False, self.can_castle["WHITE"]["right"])
+                self.can_castle["WHITE"]["left"] = (False, self.can_castle["WHITE"]["left"])        
         
         """
         Lastly, appends the applied move, with or without captured piece to "self.__applied_moves"
@@ -448,7 +426,7 @@ class BitBoard(IPiece):
         - Rook has been moved from its starting position or
         - Rook was taken from its starting position
         - King is moved from starting position or castled
-        In which case, the "self.__can_castle" is updated to upack itself to the next boolean
+        In which case, the "self.can_castle" is updated to upack itself to the next boolean
         """
         castle_capture = castle_rook = False
         if piece.lower() == "rook" and origin_index in [0, 7, 56, 63]:
@@ -482,18 +460,18 @@ class BitBoard(IPiece):
                     castle_colour = "BLACK"
                     castle_direction = "right"
         if castle_rook or castle_capture:
-            self.__can_castle[castle_colour][castle_direction] = self.__can_castle[castle_colour][castle_direction][1]
+            self.can_castle[castle_colour][castle_direction] = self.can_castle[castle_colour][castle_direction][1]
             
         if piece.lower() == "king":
             if abs(origin_index - to_index) == 2:
                 if piece[0].isupper():
                     castle_piece = "Rook"
-                    self.__can_castle["BLACK"]["left"] = self.__can_castle["BLACK"]["left"][1]
-                    self.__can_castle["BLACK"]["right"] = self.__can_castle["BLACK"]["right"][1]
+                    self.can_castle["BLACK"]["left"] = self.can_castle["BLACK"]["left"][1]
+                    self.can_castle["BLACK"]["right"] = self.can_castle["BLACK"]["right"][1]
                 else:
                     castle_piece = "rook"
-                    self.__can_castle["WHITE"]["left"] = self.__can_castle["WHITE"]["left"][1]
-                    self.__can_castle["WHITE"]["right"] = self.__can_castle["WHITE"]["right"][1]
+                    self.can_castle["WHITE"]["left"] = self.can_castle["WHITE"]["left"][1]
+                    self.can_castle["WHITE"]["right"] = self.can_castle["WHITE"]["right"][1]
                 
                 if origin_index - to_index > 0: #back to left
                     castle_to = origin_index - 4
@@ -504,11 +482,11 @@ class BitBoard(IPiece):
                 if castle_to >= 0 and castle_origin >= 0:
                     self._edit_board((castle_piece, castle_origin, castle_to))
             elif origin_index == 60:
-                self.__can_castle["BLACK"]["left"] = self.__can_castle["BLACK"]["left"][1]
-                self.__can_castle["BLACK"]["right"] = self.__can_castle["BLACK"]["right"][1]
+                self.can_castle["BLACK"]["left"] = self.can_castle["BLACK"]["left"][1]
+                self.can_castle["BLACK"]["right"] = self.can_castle["BLACK"]["right"][1]
             elif origin_index == 4:
-                self.__can_castle["WHITE"]["left"] = self.__can_castle["WHITE"]["left"][1]
-                self.__can_castle["WHITE"]["right"] = self.__can_castle["WHITE"]["right"][1]
+                self.can_castle["WHITE"]["left"] = self.can_castle["WHITE"]["left"][1]
+                self.can_castle["WHITE"]["right"] = self.can_castle["WHITE"]["right"][1]
                 
     def king_safe(self, isWhite:bool=True) -> bool:
         """
@@ -657,31 +635,36 @@ class BitBoard(IPiece):
                     move = (piece_key, origin, to_promote[0], to_promote[1])
                 else:
                     move = (piece_key, origin, to_promote)
-                    
-                self.apply_move(move)
-                legal = self.king_safe(isWhite)
-                self.revert_move()
                 
                 """
                 Caslting requirements:
                 - King is moving 2 east or west then check if: 
-                - Rook and king has not moved from starting position (stored in "self.__can_castle")
+                - Rook and king has not moved from starting position (stored in "self.can_castle")
                 - King is not moving though check
                 """
                 
                 if piece_key.lower() == "king" and abs(move[1] - move[2]) == 2:
                     if move[1] - move[2] > 0: #to left
                         to_tile_between = -1
-                        if not(self.__can_castle[colour]["left"]):
+                        if not(self.can_castle[colour]["left"]):
                             legal = False
                     else: #to right
                         to_tile_between = 1
-                        if not(self.__can_castle[colour]["right"]):
+                        if not(self.can_castle[colour]["right"]):
                             legal = False
                     move = (piece_key, origin, origin+to_tile_between)
                     legal = legal and self.king_safe(isWhite)
                     self.apply_move(move)
                     legal = legal and self.king_safe(isWhite)
+                    self.revert_move()
+                
+                """
+                Regular check move legality
+                """
+                if legal:
+                    self.apply_move(move)
+                    legal = self.king_safe(isWhite)
+                    
                     self.revert_move()
                     
                 """
@@ -763,5 +746,13 @@ class BitBoard(IPiece):
         return pw_board, pd_board
     
 if __name__ == "__main__":
-    while True:
-        pass
+    board = ".....rk........p.pN..Qp..P.p....P..............P......PK....q..."
+    bitBoard = BitBoard(board)
+    bitBoard.can_castle = {
+            "BLACK" : {"left": True, "right": True},
+            "WHITE" : {"left": True, "right": True}
+        }
+    print(bitBoard.board_formatted)
+    bitBoard.apply_move(("rook", 5, 1))
+    bitBoard.legal_move_dict
+    print()
