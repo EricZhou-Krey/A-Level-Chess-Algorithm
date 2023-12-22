@@ -17,6 +17,7 @@ class Engine:
         engine_data = json.loads(engine_data)
         self.__PIECE_MATERIAL_WEIGHT = engine_data["PIECE_MATERIAL_WEIGHT"]
         self.__PIECE_POSITIONAL_WEIGHT = engine_data["PIECE_POSITIONAL_WEIGHT"]
+        self.__STRATEGICAL_WEIGHT = engine_data["STRATEGICAL_WEIGHT"]
         
         self.bitboard = bitboard
         self.display_progress = False
@@ -60,24 +61,73 @@ class Engine:
                         w_positional += (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index] * game_phase) + (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index] * (1 - game_phase))                        
         return w_positional, d_positional
     
-    def __strategical_advantage(self, game_phase:float, colour:str) -> (float, float):
+    def __strategical_advantage(self, game_phase:float) -> (float, float):
         """
-        Intended to cover complex patterns like forks where 1 piece attacks 2 different higher value pieces meaning a certain material gain,
-        or king safety or etc however
-        Temporarily, adds the the available move squares for each colour and counts the number of tiles covered by their pieces
+        Hashing used by Stockfish instead of calculations used here instead
         """
-        w_strategical = d_strategical = 0
-        if colour == "WHITE":
-            colour_index = 0
-        return w_strategical, d_strategical
+        strategical = [0,0]
+        for active_colour_index, passive_colour_index in [[1,0], [0,1]]: #for current move white and current move black
+            
+            """
+            King Safety - gives advanatge if the king is not in danger
+            """
+            active_key_to_king_key = {1:"king", 0:"King"}
+            king_key = active_key_to_king_key[active_colour_index]
+            
+            active_key_to_similar_key = {1:0, 0:1}
+            king_bitboard = self.bitboard.bitboard_dict[king_key]
+            
+            similar = self.bitboard.combined_board[active_key_to_similar_key[active_colour_index]]
+            king_mobility = self.bitboard.get_king_bitboard(king_bitboard, similar)
+            for bit in str(format(king_mobility, "064b"))[::-1]:
+                if bit == 1:
+                    strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["KING_MOBILITY_NEGATIVE"] * game_phase)
+            
+            """
+            Mobility and Center Control - where advantage is given for contolling squares
+            """
+            move = self.bitboard.move_board
+            for index, bit in enumerate(str(format(move[active_colour_index], "064b"))[::-1]):
+                if bit == 1:
+                    strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["MOBILITY"][index] * game_phase) + (self.__STRATEGICAL_WEIGHT["EMOBILITY"][index] * (1 - game_phase))
+            
+            """
+            Pawn Structure - where advantage is given if pawns are connected or not connected
+            """
+            active_key_to_pawn_key = {1:"pawn", 0:"Pawn"}
+            pawn_key = active_key_to_pawn_key[active_colour_index]
+            pawn_bitboard = self.bitboard.bitboard_dict[pawn_key]
+            mobility_pawn_bitboard = self.bitboard.get_pawn_mobility(pawn_bitboard)
+            for bit in str(format(mobility_pawn_bitboard & pawn_bitboard, "064b"))[::-1]:
+                if bit == 1:
+                    strategical[active_colour_index] += self.__STRATEGICAL_WEIGHT["CONNECTED_PAWNS"]
+            
+            """
+            Static Exchange Evlaution - where advantage is given if a piece of lesser value can capture a piece of higher value
+            """
+            for active_key, active_move_board in self.bitboard.bitboard_dict.items():
+                if active_key[0].isupper() == (active_colour_index == 0):
+                    for board_index, bit in enumerate(str(format(active_move_board & self.bitboard.combined_board[passive_colour_index], "064b"))[::-1]):
+                        if bit == 1:
+                            passive_key = self.bitboard.index_to_piece_key(board_index)
+                            strategical[active_colour_index] += max(0, self.__PIECE_MATERIAL_WEIGHT[passive_key.upper()] - self.__PIECE_MATERIAL_WEIGHT[active_key.upper()])
+                            
+        return strategical[1], strategical[0]
     
-    def __total_advantage(self, colour) -> (float, float):
+    @property
+    def __total_advantage(self) -> (float, float):
         """
         Totals the advantage for each colour from the previous functions creating an estimate for which colour is winning in a given position,
         and by how much that colour is winning by
         """
-        game_phase = 1
-        (w_strategical, d_strategical) = self.__strategical_advantage(game_phase, colour)
+        w_board, d_board = self.bitboard.combined_board
+        piece_bitboard = (w_board|d_board) ^ (self.bitboard.bitboard_dict["pawn"]|self.bitboard.bitboard_dict["Pawn"])
+        num_pieces = 0
+        for bit in str(format(piece_bitboard, "064b"))[::-1]:
+            if bit == 1:
+                num_pieces += 1
+        game_phase = num_pieces/16
+        (w_strategical, d_strategical) = self.__strategical_advantage(game_phase)
         (w_positional, d_positional) = self.__positional_advantage(game_phase)
         (w_material, d_material) = self.__material_advantage(game_phase)
         
@@ -282,7 +332,7 @@ class Engine:
                         applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
                     self.bitboard.apply_move(applied_move)
                     
-                    w_evaluation, d_evaluation = self.__total_advantage(current_colour)
+                    w_evaluation, d_evaluation = self.__total_advantage
                     sum_eval = float(w_evaluation - d_evaluation)
                     move_evaluation[applied_move] = sum_eval
                     move_list = []
