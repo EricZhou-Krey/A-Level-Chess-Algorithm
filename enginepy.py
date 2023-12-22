@@ -80,7 +80,7 @@ class Engine:
             similar = self.bitboard.combined_board[active_key_to_similar_key[active_colour_index]]
             king_mobility = self.bitboard.get_king_bitboard(king_bitboard, similar)
             for bit in str(format(king_mobility, "064b"))[::-1]:
-                if bit == 1:
+                if int(bit) == 1:
                     strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["KING_MOBILITY_NEGATIVE"] * game_phase)
             
             """
@@ -88,7 +88,7 @@ class Engine:
             """
             move = self.bitboard.move_board
             for index, bit in enumerate(str(format(move[active_colour_index], "064b"))[::-1]):
-                if bit == 1:
+                if int(bit) == 1:
                     strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["MOBILITY"][index] * game_phase) + (self.__STRATEGICAL_WEIGHT["EMOBILITY"][index] * (1 - game_phase))
             
             """
@@ -99,7 +99,7 @@ class Engine:
             pawn_bitboard = self.bitboard.bitboard_dict[pawn_key]
             mobility_pawn_bitboard = self.bitboard.get_pawn_mobility(pawn_bitboard)
             for bit in str(format(mobility_pawn_bitboard & pawn_bitboard, "064b"))[::-1]:
-                if bit == 1:
+                if int(bit) == 1:
                     strategical[active_colour_index] += self.__STRATEGICAL_WEIGHT["CONNECTED_PAWNS"]
             
             """
@@ -108,7 +108,7 @@ class Engine:
             for active_key, active_move_board in self.bitboard.bitboard_dict.items():
                 if active_key[0].isupper() == (active_colour_index == 0):
                     for board_index, bit in enumerate(str(format(active_move_board & self.bitboard.combined_board[passive_colour_index], "064b"))[::-1]):
-                        if bit == 1:
+                        if int(bit) == 1:
                             passive_key = self.bitboard.index_to_piece_key(board_index)
                             strategical[active_colour_index] += max(0, self.__PIECE_MATERIAL_WEIGHT[passive_key.upper()] - self.__PIECE_MATERIAL_WEIGHT[active_key.upper()])
                             
@@ -124,7 +124,7 @@ class Engine:
         piece_bitboard = (w_board|d_board) ^ (self.bitboard.bitboard_dict["pawn"]|self.bitboard.bitboard_dict["Pawn"])
         num_pieces = 0
         for bit in str(format(piece_bitboard, "064b"))[::-1]:
-            if bit == 1:
+            if int(bit) == 1:
                 num_pieces += 1
         game_phase = num_pieces/16
         (w_strategical, d_strategical) = self.__strategical_advantage(game_phase)
