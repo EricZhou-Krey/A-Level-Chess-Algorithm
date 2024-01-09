@@ -2,13 +2,15 @@ import sys
 sys.path.append("../A-Level-Chess-Algorithm")
 from enginepy import Engine
 from bitboard import BitBoard
-import icecream as ic
 
-def test_default():
-    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
-    bitBoard = BitBoard(board)
-    print(bitBoard.board_formatted)
-    engine = Engine(bitBoard)
-    engine.max_num_searched = int(input("Enter max searched moves: "))
-    move_evaluation = engine.min_max_dict(current_colour="WHITE")
-    ic(move_evaluation)
+def test_evalaution():
+    try:
+        board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+        bitBoard = BitBoard(board)
+        engine = Engine(bitBoard)
+        engine.max_num_searched = 10000
+        move_evaluation = engine.min_max_dict()
+        assert True
+    except:
+        assert False
+        

@@ -310,11 +310,11 @@ class Engine:
                     
                     if self.display_progress:
                         result = ""
-                        for limit, current, desc in [[self.max_time, time.time() - self.__start_time, "Time to finish"], [self.max_depth, self.__current_highest_depth, "Depth to finish"], [self.max_num_searched, self.__num_searched, "Num search to finish"]]:
+                        for limit, current, desc in [[self.max_time, round(time.time() - self.__start_time, 3), "Time to finish"], [self.max_depth, self.__current_highest_depth, "Depth to finish"], [self.max_num_searched, self.__num_searched, "Num search to finish"]]:
                             if limit != math.inf:
-                                result += desc + " " + str(current/limit) + " "
-                                result += str(current) + "/" + str(limit) + " "
-                            print(result)
+                                result += desc + " " + str(round(current/limit, 3)) + " "
+                                result += str(current) + "/" + str(limit) + "\n"
+                        print(result)
                                 
                     looping = True
                     for name_key in current_key_index:
@@ -434,5 +434,7 @@ if __name__ == "__main__":
     engine = Engine(bitBoard)
     engine.display_progress = True
     engine.max_depth = int(input("Enter a max depth: "))
+    engine.max_num_searched = int(input("Enter a max num searched: "))
+    engine.max_time = int(input("Enter a max time: "))
     move_evaluation = engine.min_max_dict(current_colour="BLACK")
     print()

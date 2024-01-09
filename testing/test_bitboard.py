@@ -90,7 +90,7 @@ def test_castle():
     board = "r...k..r................................................R...K..R"
     bitBoard = BitBoard(board)
     bitBoard.apply_move(("king", 4, 3))
-    assert str(bitBoard._BitBoard__can_castle) == "{'BLACK': {'left': True, 'right': True}, 'WHITE': {'left': (False, True), 'right': (False, True)}}"
+    assert str(bitBoard.can_castle) == "{'BLACK': {'left': True, 'right': True}, 'WHITE': {'left': (False, True), 'right': (False, True)}}"
     bitBoard.revert_move()
     bitBoard.apply_move(("king", 4, 2))
     assert bitBoard.board_formatted == 'R . . . K . . R 0\n. . . . . . . . 1\n. . . . . . . . 2\n. . . . . . . . 3\n. . . . . . . . 4\n. . . . . . . . 5\n. . . . . . . . 6\n. . k r . . . r 7\nA B C D E F G H\n'

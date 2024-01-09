@@ -774,13 +774,4 @@ class BitBoard(IPiece):
         return pw_board, pd_board
     
 if __name__ == "__main__":
-    board = ".....rk........p.pN..Qp..P.p....P..............P......PK....q..."
-    bitBoard = BitBoard(board)
-    bitBoard.can_castle = {
-            "BLACK" : {"left": True, "right": True},
-            "WHITE" : {"left": True, "right": True}
-        }
-    print(bitBoard.board_formatted)
-    bitBoard.apply_move(("rook", 5, 1))
-    bitBoard.legal_move_dict
-    print()
+    pass
