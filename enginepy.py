@@ -1,6 +1,6 @@
 import math, time, json, numpy
 from bitboard import BitBoard
-from icecream import ic
+
 class Engine:
     def __init__(self, bitboard:BitBoard) -> None:
         """

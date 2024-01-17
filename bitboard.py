@@ -1,90 +1,68 @@
-import math
+from math import log2
 from icecream import ic
     
 class IPiece():
     def __init__(self) -> None:
-        def init_edge() -> None:
-            file_keys = ["A","B","C","D","E","F","G","H"]
-            edge_keys = ["1","2","3","4","5","6","7","8"]
-            file_values = [[(index_y*len(file_keys))+index_x for index_y in range(len(file_keys))] for index_x in range(len(edge_keys))]
-            edge_values = [[index_x+(index_y*len(file_keys)) for index_x in range(len(edge_keys))] for index_y in range(len(file_keys))]
-            
-            file_values.extend(edge_values)
-            file_keys.extend(edge_keys)
-            file_edge_values = [self._index_board_to_int64(index_array) for index_array in file_values]
-            
-            self._file_edge_bitboard = dict(zip(file_keys, file_edge_values))
-        init_edge()
+        file_keys = ["A","B","C","D","E","F","G","H"]
+        edge_keys = ["1","2","3","4","5","6","7","8"]
         
-    def _index_board_to_int64(self, index_array:list[int]) -> int:
-            bitBoard = int()
-            for index in index_array:
-                bitBoard += 2**index
-            return bitBoard
+        file_values = [[(index_y*len(file_keys))+index_x for index_y in range(len(file_keys))] for index_x in range(len(edge_keys))]
+        edge_values = [[index_x+(index_y*len(file_keys)) for index_x in range(len(edge_keys))] for index_y in range(len(file_keys))]
+        
+        file_edge_values = file_values + edge_values
+        file_edge_keys = file_keys + edge_keys
+        
+        self.index_board_to_int64 = lambda array: sum([2**index for index in array])
+        file_edge_values = [self.index_board_to_int64(index_array) for index_array in file_edge_values]
+        
+        self._file_edge_bitboard = dict(zip(file_edge_keys, file_edge_values))
 
     def get_knight_bitboard(self, board:int, similar:int=0) -> int:
-        fileA = self._file_edge_bitboard["A"]
-        fileB = self._file_edge_bitboard["B"]
-        fileG = self._file_edge_bitboard["G"]
-        fileH = self._file_edge_bitboard["H"]
-        rankOne = self._file_edge_bitboard["1"]
-        rankTwo = self._file_edge_bitboard["2"]
-        rankSeven = self._file_edge_bitboard["7"]
-        rankEight = self._file_edge_bitboard["8"]
-        move = ((board & ~(fileH|rankSeven|rankEight)) << 17) & ~(similar) # NNE
-        move |= ((board & ~(fileA|rankSeven|rankEight)) << 15) & ~(similar) # NNW
-        move |= ((board & ~(fileH|fileG|rankEight)) << 10) & ~(similar) # NEE
-        move |= ((board & ~(fileA|fileB|rankEight)) << 6) & ~(similar) # NWW
-        move |= ((board & ~(fileA|rankTwo|rankOne)) >> 17) & ~(similar) # SSW
-        move |= ((board & ~(fileH|rankTwo|rankOne)) >> 15) & ~(similar) # SSE
-        move |= ((board & ~(fileA|fileB|rankOne)) >> 10) & ~(similar) # SWW
-        move |= ((board & ~(fileH|fileG|rankOne)) >> 6) & ~(similar) # SEE
+        feb = self._file_edge_bitboard
+        move = ((board & ~(feb["H"]|feb["7"]|feb["8"])) << 17) & ~(similar) # NNE
+        move |= ((board & ~(feb["A"]|feb["7"]|feb["8"])) << 15) & ~(similar) # NNW
+        move |= ((board & ~(feb["H"]|feb["G"]|feb["8"])) << 10) & ~(similar) # NEE
+        move |= ((board & ~(feb["A"]|feb["B"]|feb["8"])) << 6) & ~(similar) # NWW
+        move |= ((board & ~(feb["A"]|feb["2"]|feb["1"])) >> 17) & ~(similar) # SSW
+        move |= ((board & ~(feb["H"]|feb["2"]|feb["1"])) >> 15) & ~(similar) # SSE
+        move |= ((board & ~(feb["A"]|feb["B"]|feb["1"])) >> 10) & ~(similar) # SWW
+        move |= ((board & ~(feb["H"]|feb["G"]|feb["1"])) >> 6) & ~(similar) # SEE
         return move
 
     def get_king_bitboard(self, board:int, similar:int=0, opposing:int=0) -> int:
-        fileA = self._file_edge_bitboard["A"]
-        fileB = self._file_edge_bitboard["B"]
-        fileG = self._file_edge_bitboard["G"]
-        fileH = self._file_edge_bitboard["H"]
-        rankOne = self._file_edge_bitboard["1"]
-        rankEight = self._file_edge_bitboard["8"]
-        move = ((board & ~(fileH)) << 1) & ~(similar) #E
-        move |= ((board & ~(fileA|rankEight)) << 7) & ~(similar) #NW
-        move |= ((board & ~(rankEight)) << 8) & ~(similar) #N
-        move |= ((board & ~(fileH|rankEight)) << 9) & ~(similar) #NE
-        move |= ((board & ~(fileA)) >> 1) & ~(similar) #W
-        move |= ((board & ~(fileH|rankOne)) >> 7) & ~(similar) #SE
-        move |= ((board & ~(rankOne)) >> 8) & ~(similar) #S
-        move |= ((board & ~(fileA|rankOne)) >> 9) & ~(similar) #SW
-        move |= ((board & ~(fileA|fileB)) >> 2) & ~(similar << 1| opposing << 1|similar|opposing|similar >> 1| opposing >> 1) #WW 
-        move |= ((board & ~(fileG|fileH)) << 2) & ~(similar|opposing|similar << 1| opposing << 1) #EE
+        feb = self._file_edge_bitboard
+        move = ((board & ~(feb["H"])) << 1) & ~(similar) #E
+        move |= ((board & ~(feb["A"]|feb["8"])) << 7) & ~(similar) #NW
+        move |= ((board & ~(feb["8"])) << 8) & ~(similar) #N
+        move |= ((board & ~(feb["H"]|feb["8"])) << 9) & ~(similar) #NE
+        move |= ((board & ~(feb["A"])) >> 1) & ~(similar) #W
+        move |= ((board & ~(feb["H"]|feb["1"])) >> 7) & ~(similar) #SE
+        move |= ((board & ~(feb["1"])) >> 8) & ~(similar) #S
+        move |= ((board & ~(feb["A"]|feb["1"])) >> 9) & ~(similar) #SW
+        move |= ((board & ~(feb["A"]|feb["B"])) >> 2) & ~(similar << 1| opposing << 1|similar|opposing|similar >> 1| opposing >> 1) #WW 
+        move |= ((board & ~(feb["G"]|feb["H"])) << 2) & ~(similar|opposing|similar << 1| opposing << 1) #EE
         return move
 
     def get_pawn_bitboard(self, board:int, is_white:bool=True, opposing:int=0, similar:int=0) -> int:
-        fileA = self._file_edge_bitboard["A"]
-        fileH = self._file_edge_bitboard["H"]
-        rankOne = self._file_edge_bitboard["1"]
-        rankTwo = self._file_edge_bitboard["2"]
-        rankSeven = self._file_edge_bitboard["7"]
-        rankEight = self._file_edge_bitboard["8"]
+        feb = self._file_edge_bitboard
         if is_white:
             move = (board << 8) & ~(similar) #N
-            move |= ((board & ~(rankSeven) & rankTwo) << 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankOne)) << 8) #NN
-            move |= ((board & ~(fileA)) << 7) & (opposing|opposing << 8) #NW
-            move |= ((board & ~(fileH)) << 9) & (opposing|opposing << 8) #NE
+            move |= ((board & ~(feb["7"]) & feb["2"]) << 16) & ~(opposing) & ~(similar) & ~((similar & ~(feb["1"])) << 8) #NN
+            move |= ((board & ~(feb["A"])) << 7) & (opposing|opposing << 8) #NW
+            move |= ((board & ~(feb["H"])) << 9) & (opposing|opposing << 8) #NE
         else:
             move = (board >> 8) & ~(similar) #S
-            move |= ((board & ~(rankTwo) & rankSeven) >> 16) & ~(opposing) & ~(similar) & ~((similar & ~(rankEight)) >> 8) #SS
-            move |= ((board & ~(fileH)) >> 7) & (opposing|opposing >> 8) #SE
-            move |= ((board & ~(fileA)) >> 9) & (opposing|opposing >> 8) #SW
+            move |= ((board & ~(feb["2"]) & feb["7"]) >> 16) & ~(opposing) & ~(similar) & ~((similar & ~(feb["8"])) >> 8) #SS
+            move |= ((board & ~(feb["H"])) >> 7) & (opposing|opposing >> 8) #SE
+            move |= ((board & ~(feb["A"])) >> 9) & (opposing|opposing >> 8) #SW
         return move
 
     def get_bishop_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
         def singular_bishop(board:int, opposing:int=0, similar:int=0) -> int:
-            fileWEdge = self._file_edge_bitboard["A"]
-            fileEEdge = self._file_edge_bitboard["H"]
-            rankSEdge = self._file_edge_bitboard["1"]
-            rankNEdge = self._file_edge_bitboard["8"]
+            NEdge = self._file_edge_bitboard["8"]
+            SEdge = self._file_edge_bitboard["1"]
+            WEdge = self._file_edge_bitboard["A"]
+            EEdge = self._file_edge_bitboard["H"]
             index = 1
             ne_done = False
             nw_done = False
@@ -101,17 +79,17 @@ class IPiece():
                 if ((board >> 7*(index-1)) & opposing) > 0 or ((board >> 7*index) & similar) > 0:
                     se_done = True
                 if not(ne_done):
-                    move |= (board & ~(rankNEdge|fileEEdge)) << 9*index #NE
+                    move |= (board & ~(NEdge|EEdge)) << 9*index #NE
                 if not(nw_done):
-                    move |= (board & ~(rankNEdge|fileWEdge)) << 7*index #NW
+                    move |= (board & ~(NEdge|WEdge)) << 7*index #NW
                 if not(sw_done):
-                    move |= (board & ~(fileWEdge|rankSEdge)) >> 9*index #SW
+                    move |= (board & ~(WEdge|SEdge)) >> 9*index #SW
                 if not(se_done):
-                    move |= (board & ~(fileEEdge|rankSEdge)) >> 7*index #SE
-                fileWEdge |= fileWEdge|fileWEdge << 1
-                rankSEdge |= rankSEdge|rankSEdge << 8
-                fileEEdge |= fileEEdge|fileEEdge >> 1
-                rankNEdge |= rankNEdge|rankNEdge >> 8
+                    move |= (board & ~(EEdge|SEdge)) >> 7*index #SE
+                WEdge |= WEdge|WEdge << 1
+                SEdge |= SEdge|SEdge << 8
+                EEdge |= EEdge|EEdge >> 1
+                NEdge |= NEdge|NEdge >> 8
             return move
         move = 0
         for index, bit in enumerate(str(format(board, "064b"))[::-1]):
@@ -121,10 +99,10 @@ class IPiece():
     
     def get_rook_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
         def singular_rook(board:int, opposing:int=0, similar:int=0) -> int:
-            fileWEdge = self._file_edge_bitboard["A"]
-            fileEEdge = self._file_edge_bitboard["H"]
-            rankSEdge = self._file_edge_bitboard["1"]
-            rankNEdge = self._file_edge_bitboard["8"]
+            NEdge = self._file_edge_bitboard["8"]
+            SEdge = self._file_edge_bitboard["1"]
+            WEdge = self._file_edge_bitboard["A"]
+            EEdge = self._file_edge_bitboard["H"]
             n_done = False
             s_done = False
             w_done = False
@@ -140,17 +118,17 @@ class IPiece():
                 if ((board >> (index-1)) & opposing) > 0 or ((board >> index) & similar) > 0:
                     w_done = True
                 if not(n_done):
-                    move |= (board & ~(rankNEdge)) << 8*index #N 
+                    move |= (board & ~(NEdge)) << 8*index #N 
                 if not(s_done):
-                    move |= (board & ~(rankSEdge)) >> 8*index #S
+                    move |= (board & ~(SEdge)) >> 8*index #S
                 if not(e_done):
-                    move |= (board & ~(fileEEdge)) << index #E
+                    move |= (board & ~(EEdge)) << index #E
                 if not(w_done):
-                    move |= (board & ~(fileWEdge)) >> index #W
-                fileWEdge |= fileWEdge|fileWEdge << 1
-                rankSEdge |= rankSEdge|rankSEdge << 8
-                fileEEdge |= fileEEdge|fileEEdge >> 1
-                rankNEdge |= rankNEdge|rankNEdge >> 8
+                    move |= (board & ~(WEdge)) >> index #W
+                WEdge |= WEdge|WEdge << 1
+                SEdge |= SEdge|SEdge << 8
+                EEdge |= EEdge|EEdge >> 1
+                NEdge |= NEdge|NEdge >> 8
             return move
         move = 0
         for index, bit in enumerate(str(format(board, "064b"))[::-1]):
@@ -164,17 +142,13 @@ class IPiece():
         return move
     
     def get_pawn_mobility(self, board:int) -> int:
-        fileA = self._file_edge_bitboard["A"]
-        fileH = self._file_edge_bitboard["H"]
-        rankOne = self._file_edge_bitboard["1"]
-        rankEight = self._file_edge_bitboard["8"]
-        
-        move = ((board & ~(fileH)) << 1) #E
-        move |= ((board & ~(fileA|rankEight)) << 7) #NW
-        move |= ((board & ~(fileH|rankEight)) << 9) #NE
-        move |= ((board & ~(fileA)) >> 1) #W
-        move |= ((board & ~(fileH|rankOne)) >> 7) #SE
-        move |= ((board & ~(fileA|rankOne)) >> 9) #SW
+        feb = self._file_edge_bitboard
+        move = ((board & ~(feb["H"])) << 1) #E
+        move |= ((board & ~(feb["A"]|feb["8"])) << 7) #NW
+        move |= ((board & ~(feb["H"]|feb["8"])) << 9) #NE
+        move |= ((board & ~(feb["A"])) >> 1) #W
+        move |= ((board & ~(feb["H"]|feb["1"])) >> 7) #SE
+        move |= ((board & ~(feb["A"]|feb["1"])) >> 9) #SW
         return move
         
 class BitBoard(IPiece):
@@ -182,7 +156,7 @@ class BitBoard(IPiece):
         def init_index_to_bitboard(index_board:{str:list[int]}) -> None:
             self.__bitboard_dict = {}
             for key in index_board.keys():
-                self.__bitboard_dict[key] = self._index_board_to_int64(index_board[key])
+                self.__bitboard_dict[key] = self.index_board_to_int64(index_board[key])
                 
         def notation_to_index_board(notation_board:str) -> {str:list[int]}:
             pieces = ["rook", "knight", "bishop", "queen", "king", "pawn", "Rook", "Pawn", "Bishop", "Knight", "Queen", "King"]
@@ -511,12 +485,12 @@ class BitBoard(IPiece):
             if self.__bitboard_dict["king"] == 0:
                 return False
             else:
-                king_origin = int(math.log2(self.__bitboard_dict["king"]))
+                king_origin = int(log2(self.__bitboard_dict["king"]))
         else:
             if self.__bitboard_dict["King"] == 0:
                 return False
             else:
-                king_origin = int(math.log2(self.__bitboard_dict["King"]))
+                king_origin = int(log2(self.__bitboard_dict["King"]))
                 
         move_dict = self.move_dict[0]
         for origin in move_dict.keys():
@@ -774,4 +748,6 @@ class BitBoard(IPiece):
         return pw_board, pd_board
     
 if __name__ == "__main__":
+    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+    bitBoard = BitBoard(board)
     pass
