@@ -1,5 +1,4 @@
 from math import log2
-from icecream import ic
     
 class IPiece():
     def __init__(self) -> None:
@@ -19,26 +18,45 @@ class IPiece():
 
     def get_knight_bitboard(self, board:int, similar:int=0) -> int:
         feb = self._file_edge_bitboard
-        move = ((board & ~(feb["H"]|feb["7"]|feb["8"])) << 17) & ~(similar) # NNE
-        move |= ((board & ~(feb["A"]|feb["7"]|feb["8"])) << 15) & ~(similar) # NNW
-        move |= ((board & ~(feb["H"]|feb["G"]|feb["8"])) << 10) & ~(similar) # NEE
-        move |= ((board & ~(feb["A"]|feb["B"]|feb["8"])) << 6) & ~(similar) # NWW
-        move |= ((board & ~(feb["A"]|feb["2"]|feb["1"])) >> 17) & ~(similar) # SSW
-        move |= ((board & ~(feb["H"]|feb["2"]|feb["1"])) >> 15) & ~(similar) # SSE
-        move |= ((board & ~(feb["A"]|feb["B"]|feb["1"])) >> 10) & ~(similar) # SWW
-        move |= ((board & ~(feb["H"]|feb["G"]|feb["1"])) >> 6) & ~(similar) # SEE
+        move = 0
+        u_move_parameters = {
+            "NNE" : (feb["H"]|feb["7"]|feb["8"], 17),
+            "NNW" : (feb["A"]|feb["7"]|feb["8"], 15),
+            "NEE" : (feb["H"]|feb["G"]|feb["8"], 10),
+            "NWW" : (feb["A"]|feb["B"]|feb["8"], 6)
+        }
+        d_move_parameters = {
+            "SSW" : (feb["A"]|feb["2"]|feb["1"], 17),
+            "SSE" : (feb["H"]|feb["2"]|feb["1"], 15),
+            "SWW" : (feb["A"]|feb["B"]|feb["1"], 10),
+            "SEE" : (feb["H"]|feb["G"]|feb["1"], 6)
+        }
+        for border, shift in u_move_parameters.values():
+            move |= ((board & ~(border)) << shift) & ~(similar)
+        for border, shift in d_move_parameters.values():
+            move |= ((board & ~(border)) >> shift) & ~(similar)
         return move
 
     def get_king_bitboard(self, board:int, similar:int=0, opposing:int=0) -> int:
         feb = self._file_edge_bitboard
-        move = ((board & ~(feb["H"])) << 1) & ~(similar) #E
-        move |= ((board & ~(feb["A"]|feb["8"])) << 7) & ~(similar) #NW
-        move |= ((board & ~(feb["8"])) << 8) & ~(similar) #N
-        move |= ((board & ~(feb["H"]|feb["8"])) << 9) & ~(similar) #NE
-        move |= ((board & ~(feb["A"])) >> 1) & ~(similar) #W
-        move |= ((board & ~(feb["H"]|feb["1"])) >> 7) & ~(similar) #SE
-        move |= ((board & ~(feb["1"])) >> 8) & ~(similar) #S
-        move |= ((board & ~(feb["A"]|feb["1"])) >> 9) & ~(similar) #SW
+        move = 0
+        u_move_parameters = {
+            "E" : (feb["H"], 1),
+            "NW" : (feb["A"]|feb["8"], 7),
+            "N" : (feb["8"], 8),
+            "NE" : (feb["H"]|feb["8"], 9)
+        }
+        d_move_parameters = {
+            "W" : (feb["A"], 1),
+            "SE" : (feb["H"]|feb["1"], 7),
+            "S" : (feb["1"], 8),
+            "SW" : (feb["A"]|feb["1"], 9),
+        }
+        for border, shift in u_move_parameters.values():
+            move |= ((board & ~(border)) << shift) & ~(similar)
+        for border, shift in d_move_parameters.values():
+            move |= ((board & ~(border)) >> shift) & ~(similar)
+            
         move |= ((board & ~(feb["A"]|feb["B"])) >> 2) & ~(similar << 1| opposing << 1|similar|opposing|similar >> 1| opposing >> 1) #WW 
         move |= ((board & ~(feb["G"]|feb["H"])) << 2) & ~(similar|opposing|similar << 1| opposing << 1) #EE
         return move
@@ -46,12 +64,12 @@ class IPiece():
     def get_pawn_bitboard(self, board:int, is_white:bool=True, opposing:int=0, similar:int=0) -> int:
         feb = self._file_edge_bitboard
         if is_white:
-            move = (board << 8) & ~(similar) #N
+            move = (board << 8) & ~(similar|opposing) #N
             move |= ((board & ~(feb["7"]) & feb["2"]) << 16) & ~(opposing) & ~(similar) & ~((similar & ~(feb["1"])) << 8) #NN
             move |= ((board & ~(feb["A"])) << 7) & (opposing|opposing << 8) #NW
             move |= ((board & ~(feb["H"])) << 9) & (opposing|opposing << 8) #NE
         else:
-            move = (board >> 8) & ~(similar) #S
+            move = (board >> 8) & ~(similar|opposing) #S
             move |= ((board & ~(feb["2"]) & feb["7"]) >> 16) & ~(opposing) & ~(similar) & ~((similar & ~(feb["8"])) >> 8) #SS
             move |= ((board & ~(feb["H"])) >> 7) & (opposing|opposing >> 8) #SE
             move |= ((board & ~(feb["A"])) >> 9) & (opposing|opposing >> 8) #SW
@@ -59,38 +77,42 @@ class IPiece():
 
     def get_bishop_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
         def singular_bishop(board:int, opposing:int=0, similar:int=0) -> int:
-            NEdge = self._file_edge_bitboard["8"]
-            SEdge = self._file_edge_bitboard["1"]
-            WEdge = self._file_edge_bitboard["A"]
-            EEdge = self._file_edge_bitboard["H"]
-            index = 1
-            ne_done = False
-            nw_done = False
-            se_done = False
-            sw_done = False
+            feb = {
+                "N" : self._file_edge_bitboard["8"],
+                "S" : self._file_edge_bitboard["1"],
+                "W" : self._file_edge_bitboard["A"],
+                "E" : self._file_edge_bitboard["H"]
+            }
+            collided = {
+                "N" : {
+                    "E" : (False, 9),
+                    "W" : (False, 7)
+                    },
+                "S" : {
+                    "W" : (False, 9),
+                    "E" : (False, 7)
+                    }
+            }
             move = 0
             for index in range(1,9):
-                if ((board << 9*(index-1)) & opposing) > 0 or ((board << 9*index) & similar) > 0:
-                    ne_done = True
-                if ((board << 7*(index-1)) & opposing) > 0 or ((board << 7*index) & similar) > 0:
-                    nw_done = True
-                if ((board >> 9*(index-1)) & opposing) > 0 or ((board >> 9*index) & similar) > 0:
-                    sw_done = True
-                if ((board >> 7*(index-1)) & opposing) > 0 or ((board >> 7*index) & similar) > 0:
-                    se_done = True
-                if not(ne_done):
-                    move |= (board & ~(NEdge|EEdge)) << 9*index #NE
-                if not(nw_done):
-                    move |= (board & ~(NEdge|WEdge)) << 7*index #NW
-                if not(sw_done):
-                    move |= (board & ~(WEdge|SEdge)) >> 9*index #SW
-                if not(se_done):
-                    move |= (board & ~(EEdge|SEdge)) >> 7*index #SE
-                WEdge |= WEdge|WEdge << 1
-                SEdge |= SEdge|SEdge << 8
-                EEdge |= EEdge|EEdge >> 1
-                NEdge |= NEdge|NEdge >> 8
+                for key, value in collided["N"].items():
+                    shift = value[1]
+                    collided["N"][key] = (True, shift) \
+                        if (((board << shift*(index-1)) & opposing) > 0 or ((board << shift*index) & similar) > 0) or collided["N"][key][0] else (False, shift)
+                    collided["S"][key] = (True, shift) \
+                        if (((board >> shift*(index-1)) & opposing) > 0 or ((board >> shift*index) & similar) > 0) or collided["S"][key][0] else (False, shift)
+                
+                if not(collided["N"]["E"][0]): move |= (board & ~(feb["N"]|feb["E"])) << 9*index
+                if not(collided["N"]["W"][0]): move |= (board & ~(feb["N"]|feb["W"])) << 7*index
+                if not(collided["S"]["W"][0]): move |= (board & ~(feb["S"]|feb["W"])) >> 9*index
+                if not(collided["S"]["E"][0]): move |= (board & ~(feb["S"]|feb["E"])) >> 7*index
+            
+                feb["W"] |= feb["W"]|feb["W"] << 1
+                feb["S"] |= feb["S"]|feb["S"] << 8
+                feb["E"] |= feb["E"]|feb["E"] >> 1
+                feb["N"] |= feb["N"]|feb["N"] >> 8
             return move
+        
         move = 0
         for index, bit in enumerate(str(format(board, "064b"))[::-1]):
             if int(bit) == 1:
@@ -99,37 +121,42 @@ class IPiece():
     
     def get_rook_bitboard(self, board:int, opposing:int=0, similar:int=0) -> int:
         def singular_rook(board:int, opposing:int=0, similar:int=0) -> int:
-            NEdge = self._file_edge_bitboard["8"]
-            SEdge = self._file_edge_bitboard["1"]
-            WEdge = self._file_edge_bitboard["A"]
-            EEdge = self._file_edge_bitboard["H"]
-            n_done = False
-            s_done = False
-            w_done = False
-            e_done = False
+            feb = {
+                "N" : self._file_edge_bitboard["8"],
+                "S" : self._file_edge_bitboard["1"],
+                "W" : self._file_edge_bitboard["A"],
+                "E" : self._file_edge_bitboard["H"]
+            }
+            collided = {
+                "L" : {
+                    "V" : (False, 8),
+                    "H" : (False, 1)
+                    },
+                "R" : {
+                    "H" : (False, 1),
+                    "V" : (False, 8)
+                    }
+            }
             move = 0
             for index in range(1,9):
-                if ((board << 8*(index-1)) & opposing) > 0 or ((board << 8*index) & similar) > 0:
-                    n_done = True
-                if ((board >> 8*(index-1)) & opposing) > 0 or ((board >> 8*index) & similar) > 0:
-                    s_done = True
-                if ((board << (index-1)) & opposing) > 0 or ((board << index) & similar) > 0:
-                    e_done = True
-                if ((board >> (index-1)) & opposing) > 0 or ((board >> index) & similar) > 0:
-                    w_done = True
-                if not(n_done):
-                    move |= (board & ~(NEdge)) << 8*index #N 
-                if not(s_done):
-                    move |= (board & ~(SEdge)) >> 8*index #S
-                if not(e_done):
-                    move |= (board & ~(EEdge)) << index #E
-                if not(w_done):
-                    move |= (board & ~(WEdge)) >> index #W
-                WEdge |= WEdge|WEdge << 1
-                SEdge |= SEdge|SEdge << 8
-                EEdge |= EEdge|EEdge >> 1
-                NEdge |= NEdge|NEdge >> 8
+                for key, value in collided["L"].items():
+                    done, shift = value
+                    collided["R"][key] = (True, shift) \
+                        if (((board << shift*(index-1)) & opposing) > 0 or ((board << shift*index) & similar) > 0) or collided["R"][key][0] else (False, shift)
+                    collided["L"][key] = (True, shift) \
+                        if (((board >> shift*(index-1)) & opposing) > 0 or ((board >> shift*index) & similar) > 0) or collided["L"][key][0] else (False, shift)
+                
+                if not(collided["R"]["V"][0]): move |= (board & ~(feb["N"])) << 8*index
+                if not(collided["R"]["H"][0]): move |= (board & ~(feb["E"])) << index
+                if not(collided["L"]["V"][0]): move |= (board & ~(feb["S"])) >> 8*index
+                if not(collided["L"]["H"][0]): move |= (board & ~(feb["W"])) >> index
+                
+                feb["W"] |= feb["W"]|feb["W"] << 1
+                feb["S"] |= feb["S"]|feb["S"] << 8
+                feb["E"] |= feb["E"]|feb["E"] >> 1
+                feb["N"] |= feb["N"]|feb["N"] >> 8
             return move
+        
         move = 0
         for index, bit in enumerate(str(format(board, "064b"))[::-1]):
             if int(bit) == 1:
@@ -142,15 +169,27 @@ class IPiece():
         return move
     
     def get_pawn_mobility(self, board:int) -> int:
+        """
+        For engine evaluation purposes in order to analyse pawn connectivity
+        """
         feb = self._file_edge_bitboard
-        move = ((board & ~(feb["H"])) << 1) #E
-        move |= ((board & ~(feb["A"]|feb["8"])) << 7) #NW
-        move |= ((board & ~(feb["H"]|feb["8"])) << 9) #NE
-        move |= ((board & ~(feb["A"])) >> 1) #W
-        move |= ((board & ~(feb["H"]|feb["1"])) >> 7) #SE
-        move |= ((board & ~(feb["A"]|feb["1"])) >> 9) #SW
+        move = 0
+        u_move_parameters = {
+            "NW" : (feb["A"]|feb["8"], 7),
+            "NE" : (feb["H"]|feb["8"], 9),
+            "E" : (feb["H"], 1),
+        }
+        d_move_parameters = {
+            "SW" : (feb["A"]|feb["1"], 9),
+            "SE" :(feb["H"]|feb["1"], 7),
+            "W" : (feb["A"], 1),
+        }
+        for border, shift in u_move_parameters.values():
+            move |= ((board & ~(border)) << shift)
+        for border, shift in d_move_parameters.values():
+            move |= ((board & ~(border)) >> shift)
         return move
-        
+
 class BitBoard(IPiece):
     def __init__(self, notation_board:str) -> None:
         def init_index_to_bitboard(index_board:{str:list[int]}) -> None:
@@ -159,9 +198,14 @@ class BitBoard(IPiece):
                 self.__bitboard_dict[key] = self.index_board_to_int64(index_board[key])
                 
         def notation_to_index_board(notation_board:str) -> {str:list[int]}:
-            pieces = ["rook", "knight", "bishop", "queen", "king", "pawn", "Rook", "Pawn", "Bishop", "Knight", "Queen", "King"]
+            pieces = ["rook", "knight", "bishop", "queen", "king", "pawn", \
+                "Rook", "Pawn", "Bishop", "Knight", "Queen", "King"]
+            
             piece_index_board = dict(zip(pieces, [[] for key in range(len(pieces))]))
-            notation_to_key = {"r":"rook", "n":"knight", "b":"bishop", "q":"queen", "k":"king", "p":"pawn", "R":"Rook", "P":"Pawn", "B":"Bishop", "N":"Knight", "Q":"Queen", "K":"King"}
+            
+            notation_to_key = {"r":"rook", "n":"knight", "b":"bishop", "q":"queen", "k":"king", "p":"pawn", \
+                "R":"Rook", "P":"Pawn", "B":"Bishop", "N":"Knight", "Q":"Queen", "K":"King"}
+            
             for index, notation in enumerate(notation_board):
                 if notation in notation_to_key.keys():
                     piece_index_board[notation_to_key[notation]].append(index)
@@ -186,35 +230,27 @@ class BitBoard(IPiece):
             piece_bitboard = 2**singular_piece_index
         else:
             piece_bitboard = self.__bitboard_dict[piece]
-        match piece.lower():
-            case "pawn":
-                return self.get_pawn_bitboard(piece_bitboard, not(piece[0].isupper()), opposing, similar)
-            case "king":
-                return self.get_king_bitboard(piece_bitboard, similar, opposing)
-            case "knight":
-                return self.get_knight_bitboard(piece_bitboard, similar)
-            case "bishop":
-                return self.get_bishop_bitboard(piece_bitboard, opposing, similar)
-            case "rook":
-                return self.get_rook_bitboard(piece_bitboard, opposing, similar)
-            case "queen":
-                return self.get_queen_bitboard(piece_bitboard, opposing, similar)
-            case _:
-                return -1
+        piece_movement_bitboard = {
+            "pawn" : (self.get_pawn_bitboard, (piece_bitboard, not(piece[0].isupper()), opposing, similar)),
+            "king" : (self.get_king_bitboard, (piece_bitboard, similar, opposing)),
+            "knight" : (self.get_knight_bitboard, (piece_bitboard, similar)),
+            "bishop" : (self.get_bishop_bitboard, (piece_bitboard, opposing, similar)),
+            "rook" : (self.get_rook_bitboard, (piece_bitboard, opposing, similar)),
+            "queen" : (self.get_queen_bitboard, (piece_bitboard, opposing, similar)),
+        }
+        move_function, args = piece_movement_bitboard[piece.lower()]
+        return move_function(*args)
 
-    def _edit_board(self, move:tuple) -> None:
+    def _extract_move(self, move:tuple) -> (str, str, int, int, int, int, int):
         """
         Move is extracted as this could be formated as:
         The piece moving, the origin from which is moving, the location to which it is moving
         And optionally, if the piece is a promoting pawn the promotion piece
         
-        Then bitwise operations are performed to create a mask of the to and from location of the moving piece
+        Bitwise operations are performed to create a mask of the to and from location of the moving piece
         such that when a bitwise XOR is applied the bitboard is updated to the correct bitboard
-        
-        Then promote piece board is updated if promotion is assigned
-        
-        Finally the to location is checked to replace a captured piece and the bitwise XOR is applied
         """
+        
         if len(move) == 3:
             piece, origin_index, to_index = move
             promote_key = ""
@@ -229,9 +265,19 @@ class BitBoard(IPiece):
         else:
             origin_to_bit = origin_bit
             
+        return piece, promote_key, origin_bit, to_bit, origin_to_bit, origin_index, to_index
+        
+    def _edit_board(self, move:tuple) -> None:
+        """
+        Promote piece board is updated if promotion is assigned
+        The to location is checked to replace a captured piece and the bitwise XOR is applied
+        """
+            
+        piece, promote_key, _, to_bit, origin_to_bit, *_ = self._extract_move(move)
+        
         if promote_key != "":
             self.__bitboard_dict[promote_key] |= to_bit
-        
+            
         pw_board, pd_board = self.combined_board
         combined_board = pw_board | pd_board
         if combined_board ^ to_bit < combined_board:
@@ -239,35 +285,17 @@ class BitBoard(IPiece):
                 if self.__bitboard_dict[key] & to_bit > 0:
                     self.__bitboard_dict[key] ^= to_bit
                     break
-                
-        self.__bitboard_dict[piece] ^= origin_to_bit
+        if piece:
+            self.__bitboard_dict[piece] ^= origin_to_bit
 
     def apply_move(self, move:tuple) -> None:
         """
-        Move is extracted as this could be formated as:
-        The piece moving, the origin from which is moving, the location to which it is moving
-        And optionally, if the piece is a promoting pawn the promotion piece
-        
-        Then bitwise operations are performed to create a mask of the to and from location of the moving piece
-        such that when a bitwise XOR is applied the bitboard is updated to the correct bitboard
-        
-        Then promote piece board is updated if promotion is assigned
+        Promote piece board is updated if promotion is assigned
         
         Finally the to location is checked to replace a captured piece and the bitwise XOR is applied
         """
-        if len(move) == 3:
-            piece, origin_index, to_index = move
-            promote_key = ""
-        else:
-            piece, origin_index, to_index, promote_key = move
         
-        origin_bit = 2**origin_index
-        to_bit = 2**to_index
-        
-        if promote_key == "":
-            origin_to_bit = origin_bit | to_bit
-        else:
-            origin_to_bit = origin_bit
+        piece, promote_key, _, to_bit, origin_to_bit, origin_index, to_index = self._extract_move(move)
         
         if promote_key != "":
             self.__bitboard_dict[promote_key] |= to_bit
@@ -307,46 +335,21 @@ class BitBoard(IPiece):
         """
         
         castle_capture = castle_rook = False
-        if piece.lower() == "rook" and origin_index in [0,7,56,63]:
+        if piece.lower() == "rook":
             castle_rook = True
-            match origin_index:
-                case 0:
-                    castle_colour = "WHITE"
-                    castle_direction = "left"
-                case 7:
-                    castle_colour = "WHITE"
-                    castle_direction = "right"
-                case 56:
-                    castle_colour = "BLACK"
-                    castle_direction = "left"
-                case 63:
-                    castle_colour = "BLACK"
-                    castle_direction = "right"
-        elif (to_index in [0,7] and capture_key == "rook") or (to_index in [56,63] and capture_key == "Rook"):
+            castle_colour = "WHITE" if origin_index in [0, 7] else "BLACK"
+            castle_direction = "left" if origin_index in [0, 56] else "right"
+        elif capture_key and capture_key.lower() == "rook":
             castle_capture = True
-            match to_index:
-                case 0:
-                    castle_colour = "WHITE"
-                    castle_direction = "left"
-                case 7:
-                    castle_colour = "WHITE"
-                    castle_direction = "right"
-                case 56:
-                    castle_colour = "BLACK"
-                    castle_direction = "left"
-                case 63:
-                    castle_colour = "BLACK"
-                    castle_direction = "right"
-                    
+            castle_colour = "WHITE" if to_index in [0, 7] else "BLACK"
+            castle_direction = "left" if to_index in [0, 56] else "right"
+        
         if castle_rook or castle_capture:
             self.can_castle[castle_colour][castle_direction] = (False, self.can_castle[castle_colour][castle_direction])
         
         if piece.lower() == "king":
             if abs(origin_index - to_index) == 2:
-                if piece[0].isupper():
-                    castle_piece = "Rook"
-                else:
-                    castle_piece = "rook"
+                castle_piece = "Rook" if piece[0].isupper() else "rook"
                 if origin_index - to_index > 0: #to left
                     castle_origin = origin_index - 4
                     castle_to = origin_index - 1
@@ -416,37 +419,17 @@ class BitBoard(IPiece):
         - King is moved from starting position or castled
         In which case, the "self.can_castle" is updated to upack itself to the next boolean
         """
+        
         castle_capture = castle_rook = False
-        if piece.lower() == "rook" and origin_index in [0, 7, 56, 63]:
+        if piece.lower() == "rook":
             castle_rook = True
-            match origin_index:
-                case 0:
-                    castle_colour = "WHITE"
-                    castle_direction = "left"
-                case 7:
-                    castle_colour = "WHITE"
-                    castle_direction = "right"
-                case 56:
-                    castle_colour = "BLACK"
-                    castle_direction = "left"
-                case 63:
-                    castle_colour = "BLACK"
-                    castle_direction = "right"
-        elif (to_index in [0,7] and capture_key == "rook") or (to_index in [56,63] and capture_key == "Rook"):
+            castle_colour = "WHITE" if origin_index in [0, 7] else "BLACK"
+            castle_direction = "left" if origin_index in [0, 56] else "right"
+        elif capture_key and capture_key.lower() == "rook":
             castle_capture = True
-            match to_index:
-                case 0:
-                    castle_colour = "WHITE"
-                    castle_direction = "left"
-                case 7:
-                    castle_colour = "WHITE"
-                    castle_direction = "right"
-                case 56:
-                    castle_colour = "BLACK"
-                    castle_direction = "left"
-                case 63:
-                    castle_colour = "BLACK"
-                    castle_direction = "right"
+            castle_colour = "WHITE" if to_index in [0, 7] else "BLACK"
+            castle_direction = "left" if to_index in [0, 56] else "right"
+                    
         if castle_rook or castle_capture:
             self.can_castle[castle_colour][castle_direction] = self.can_castle[castle_colour][castle_direction][1]
             
@@ -499,19 +482,16 @@ class BitBoard(IPiece):
                     return False
         return True
 
-    def number_to_algrebra_notation(self, move:tuple) -> tuple:
-        if len(move) == 3:
-            piece, origin, to = move
-            promote = False
-        else:
-            piece, origin, to, promote_key = move
-            promote = True
+    def number_to_algebra_notation(self, move:tuple) -> tuple:
+        
+        piece, promote_key, _, _, _, origin, to = self._extract_move(move)
+        
         files = "ABCDEFGH"
         origin_rank = str((origin//8) + 1)
         origin_file = str(files[origin%8])
         to_rank = str((to//8) + 1)
         to_file = str(files[to%8])
-        if promote:
+        if promote_key:
             return piece, origin_file+origin_rank, to_file+to_rank, promote_key
         else:
             return piece, origin_file+origin_rank, to_file+to_rank
@@ -519,34 +499,33 @@ class BitBoard(IPiece):
     def index_to_piece_key(self, index:int) -> str:
         index_bit = 2**index
         w_board, d_board = self.combined_board
-        if index_bit & w_board > 0:
-            is_white = True
-        elif index_bit & d_board > 0:
-            is_white = False
-        else:
-            return "No piece there"
+        
+        is_white = True if index_bit & w_board > 0 else None
+        is_white = False if index_bit & d_board > 0 else is_white
+        if is_white == None: return None
+                    
         for key, bitboard in self.bitboard_dict.items():
             if not(key[0].isupper) == is_white and bitboard & index_bit > 0:
                 return key
-            
+        return None
+    
     def bitboard_formatted(self, bitboard:int=-1) -> str:
         """
         For debugging purposes, outputs 64bit integers as an 8 by 8 chess grid of 0s and 1s 
         Defaults to display the location of pieces on the bitboard
         """
+        
         result = ""
         if bitboard == -1:
             w_board, d_board = self.combined_board
             bitboard = w_board|d_board
             
         board = format(bitboard, "064b")
-        for row in range(0,(len(board)//8)):
-            if row*8-1 < 0:
-                result += " ".join(board[((row+1)*8)-1::-1]) + " " + str(row) + "\n"
-            else:
-                result += " ".join(board[((row+1)*8)-1:row*8-1:-1]) + " " + str(row) + "\n"
+        for row in range(len(board)//8):
+            result += " ".join(board[((row+1)*8)-1:(row*8)-1 if (row*8)-1 > 0 else None:-1]) + " " + str(row) + "\n"
         result += " ".join("ABCDEFGH") + "\n"
         return result
+
     @property
     def board_formatted(self) -> str:
         """
@@ -565,6 +544,7 @@ class BitBoard(IPiece):
                             board[63-index] = piece_key[1].upper()
                         case _:
                             board[63-index] = piece_key[0]
+                            
         for row in range(0,(len(board)//8)):
             if row*8-1 < 0:
                 result += " ".join(board[((row+1)*8)-1::-1]) + " " + str(row) + "\n"
@@ -580,19 +560,20 @@ class BitBoard(IPiece):
         
         Lastly, key_to_index is a dictionary with a list of origins for every piece type, seperated into black and white with capital 
         """
+        
         white, dark = self.combined_board
-        key_to_index = {}
+        key_to_index = {key:[] for key in self.__bitboard_dict.keys()}
         move_dictionary = {}
+        
         for key in self.__bitboard_dict.keys():
-            key_to_index[key] = []
             for index, bit in enumerate(str(format(self.__bitboard_dict[key], "064b"))[::-1]):
                 if int(bit) == 1:
                     key_to_index[key].append(index)
                     move_dictionary[index] = []
-                    if key[0].isupper():
-                        move_board = str(format(self._get_move(key, white, dark, index), "064b"))[::-1]
-                    else:
-                        move_board = str(format(self._get_move(key, dark, white, index), "064b"))[::-1]
+                    
+                    move_board = str(format(self._get_move(key, white, dark, index), "064b"))[::-1] if key[0].isupper() \
+                        else str(format(self._get_move(key, dark, white, index), "064b"))[::-1]
+                        
                     for move_index, m_bit in enumerate(move_board):
                         if int(m_bit) == 1:
                             if key == "Pawn" and (2**move_index & self._file_edge_bitboard["1"]) > 0:
@@ -666,7 +647,6 @@ class BitBoard(IPiece):
                 if legal:
                     self.apply_move(move)
                     legal = self.king_safe(isWhite)
-                    
                     self.revert_move()
                     
                 """
@@ -681,7 +661,10 @@ class BitBoard(IPiece):
                     if len(self.__applied_moves) > 0:
                         if len(self.__applied_moves[len(self.__applied_moves)-1]) == 3:
                             last_piece, last_origin, last_to = self.__applied_moves[len(self.__applied_moves)-1][:3]
-                            en_passant = (last_to % 8 == move[2] % 8 and last_to // 8 == move[1] // 8) and last_piece.lower() == "pawn" and abs(last_origin - last_to) == 16
+                            
+                            en_passant = (last_to % 8 == move[2] % 8 and last_to // 8 == move[1] // 8) \
+                                and last_piece.lower() == "pawn" and abs(last_origin - last_to) == 16
+                                
                             taking = move[2] in move_dictionary.keys()
                             if not(en_passant or taking):
                                 legal = False
@@ -719,7 +702,7 @@ class BitBoard(IPiece):
     @property
     def move_board(self) -> (int, int):
         """
-        For debugging purposes, outputs the combined movement for each colour as a 64 bit integer
+        For debugging purposes and engine evaluation, outputs the combined movement for each colour as a 64 bit integer
         """
         move_dict, key_index = self.move_dict
         w_move = 0
@@ -746,8 +729,8 @@ class BitBoard(IPiece):
             else:
                 pw_board |= self.__bitboard_dict[key]
         return pw_board, pd_board
-    
+
 if __name__ == "__main__":
-    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+    board = "................................................................"
     bitBoard = BitBoard(board)
     pass

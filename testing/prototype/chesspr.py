@@ -60,6 +60,7 @@ class ChessBoard(Interface):
             "DQueen": pygame.image.load("Chess Piece Image/Chess_qdt45.svg").convert_alpha(),
             "DKing": pygame.image.load("Chess Piece Image/Chess_kdt45.svg").convert_alpha()
         }
+        
         for key in self.peiceImage:
             self.peiceImage[key] = pygame.transform.scale(self.peiceImage[key], (self.columnsize, self.rowsize))
         for row in range(len(self.board)):
@@ -327,3 +328,7 @@ class ChessBoard(Interface):
                 if self.board[row][column] != "__":
                     (notation, image) = self.board[row][column]
                     window.blit(image, (column * self.columnsize, row * self.rowsize))
+
+if __name__ == "__main__":
+    chess_window = ChessBoard((800,800), "chess", (100,100))
+    chess_window.run()

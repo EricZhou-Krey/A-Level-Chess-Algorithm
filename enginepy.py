@@ -3,6 +3,12 @@ from bitboard import BitBoard
 
 class Engine:
     def __init__(self, bitboard:BitBoard) -> None:
+        def format_table(weights:list[int]):
+            result = []
+            for row in range(len(weights)//8):
+                result.extend(weights[((row+1)*8)-1:(row*8)-1 if (row*8)-1 > 0 else None:-1])
+            return result
+        
         """
         Weight masks and values are loaded here to work out the advanatge of any given position
         In addition, the "max_num_searched", "max_depth" and "max_time" public variables can be 
@@ -15,18 +21,24 @@ class Engine:
         with open("engine_weight.json", "r") as engine_weight:
             engine_data = engine_weight.read()
         engine_data = json.loads(engine_data)
+        
         self.__PIECE_MATERIAL_WEIGHT = engine_data["PIECE_MATERIAL_WEIGHT"]
         self.__PIECE_POSITIONAL_WEIGHT = engine_data["PIECE_POSITIONAL_WEIGHT"]
+        self.__PIECE_POSITIONAL_WEIGHT = {key:format_table(value) for key, value in self.__PIECE_POSITIONAL_WEIGHT.items()}
         self.__STRATEGICAL_WEIGHT = engine_data["STRATEGICAL_WEIGHT"]
+        self.__STRATEGICAL_WEIGHT = {key:(format_table(value) if key in ["MOBILITY", "EMOBILITY"] else value) for key, value in self.__STRATEGICAL_WEIGHT.items()}
         
         self.bitboard = bitboard
         self.display_progress = False
+        
         self.max_num_searched = math.inf
-        self.__num_searched = 0
         self.max_depth = math.inf
         self.max_time = math.inf
+        
+        self.__num_searched = 0
         self.__start_time = None
         self.__current_highest_depth =  0
+        
         self.__alpha = math.inf #upper bound for black
         self.__beta = -math.inf #lower bound for white
         
@@ -40,9 +52,11 @@ class Engine:
             for bit in str(format(self.bitboard.bitboard_dict[key], "064b"))[::-1]:
                 if int(bit) == 1:
                     if key[0].isupper():
-                        d_material += (self.__PIECE_MATERIAL_WEIGHT[key.upper()] * game_phase) + (self.__PIECE_MATERIAL_WEIGHT["E"+key.upper()] * (1 - game_phase))
+                        d_material += (self.__PIECE_MATERIAL_WEIGHT[key.upper()] * game_phase) + \
+                            (self.__PIECE_MATERIAL_WEIGHT["E"+key.upper()] * (1 - game_phase))
                     else:
-                        w_material += (self.__PIECE_MATERIAL_WEIGHT[key.upper()] * game_phase) + (self.__PIECE_MATERIAL_WEIGHT["E"+key.upper()] * (1 - game_phase))
+                        w_material += (self.__PIECE_MATERIAL_WEIGHT[key.upper()] * game_phase) + \
+                            (self.__PIECE_MATERIAL_WEIGHT["E"+key.upper()] * (1 - game_phase))
         return w_material, d_material
 
     def __positional_advantage(self, game_phase:float) -> (float, float):
@@ -56,63 +70,109 @@ class Engine:
             for board_index, bit in enumerate(str(format(self.bitboard.bitboard_dict[key], "064b"))[::-1]):
                 if int(bit) == 1:
                     if key[0].isupper():
-                        d_positional += (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][::-1][board_index] * game_phase) + (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][::-1][board_index] * (1 - game_phase))
+                        d_positional += (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][::-1][board_index] * game_phase) \
+                            + (self.__PIECE_POSITIONAL_WEIGHT["E"+key.upper()][::-1][board_index] * (1 - game_phase))
                     else:
-                        w_positional += (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index] * game_phase) + (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index] * (1 - game_phase))                        
+                        w_positional += (self.__PIECE_POSITIONAL_WEIGHT[key.upper()][board_index] * game_phase) \
+                            + (self.__PIECE_POSITIONAL_WEIGHT["E"+key.upper()][board_index] * (1 - game_phase))                        
         return w_positional, d_positional
     
     def __strategical_advantage(self, game_phase:float) -> (float, float):
-        """
-        Hashing used by Stockfish instead of calculations used here instead
-        """
-        strategical = [0,0]
-        for active_colour_index, passive_colour_index in [[1,0], [0,1]]: #for current move white and current move black
-            
+        def king_safety_modifier(game_phase:float):
             """
             King Safety - gives advanatge if the king is not in danger
             """
-            active_key_to_king_key = {1:"king", 0:"King"}
-            king_key = active_key_to_king_key[active_colour_index]
-            
-            active_key_to_similar_key = {1:0, 0:1}
-            king_bitboard = self.bitboard.bitboard_dict[king_key]
-            
-            similar = self.bitboard.combined_board[active_key_to_similar_key[active_colour_index]]
-            king_mobility = self.bitboard.get_king_bitboard(king_bitboard, similar)
-            for bit in str(format(king_mobility, "064b"))[::-1]:
-                if int(bit) == 1:
-                    strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["KING_MOBILITY_NEGATIVE"] * game_phase)
-            
+            strategical = [0,0]
+            for active_colour_index in range(2):
+                active_key_to_king_key = {1:"king", 0:"King"}
+                king_key = active_key_to_king_key[active_colour_index]
+                
+                active_key_to_similar_key = {1:0, 0:1}
+                king_bitboard = self.bitboard.bitboard_dict[king_key]
+                
+                similar = self.bitboard.combined_board[active_key_to_similar_key[active_colour_index]]
+                king_mobility = self.bitboard.get_king_bitboard(king_bitboard, similar)
+                for bit in str(format(king_mobility, "064b"))[::-1]:
+                    if int(bit) == 1:
+                        strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["KING_MOBILITY_NEGATIVE"] * game_phase)
+            return strategical
+        
+        def mobility_modifier(game_phase:float):
             """
             Mobility and Center Control - where advantage is given for contolling squares
             """
-            move = self.bitboard.move_board
-            for index, bit in enumerate(str(format(move[active_colour_index], "064b"))[::-1]):
-                if int(bit) == 1:
-                    strategical[active_colour_index] += (self.__STRATEGICAL_WEIGHT["MOBILITY"][index] * game_phase) + (self.__STRATEGICAL_WEIGHT["EMOBILITY"][index] * (1 - game_phase))
-            
+            strategical = [0,0]
+            for active_colour_index in range(2):
+                move = self.bitboard.move_board
+                if active_colour_index:
+                    mobility_board, e_mobility_board = self.__STRATEGICAL_WEIGHT["MOBILITY"], self.__STRATEGICAL_WEIGHT["EMOBILITY"]
+                else:
+                    mobility_board, e_mobility_board = self.__STRATEGICAL_WEIGHT["MOBILITY"][::-1], self.__STRATEGICAL_WEIGHT["EMOBILITY"][::-1]
+
+                for index, bit in enumerate(str(format(move[active_colour_index], "064b"))[::-1]):
+                    if int(bit) == 1:
+                        strategical[active_colour_index] += (mobility_board[index] * game_phase) + (e_mobility_board[index] * (1 - game_phase))
+            return strategical
+        
+        def pawn_structure_modifier():
             """
             Pawn Structure - where advantage is given if pawns are connected or not connected
             """
-            active_key_to_pawn_key = {1:"pawn", 0:"Pawn"}
-            pawn_key = active_key_to_pawn_key[active_colour_index]
-            pawn_bitboard = self.bitboard.bitboard_dict[pawn_key]
-            mobility_pawn_bitboard = self.bitboard.get_pawn_mobility(pawn_bitboard)
-            for bit in str(format(mobility_pawn_bitboard & pawn_bitboard, "064b"))[::-1]:
-                if int(bit) == 1:
-                    strategical[active_colour_index] += self.__STRATEGICAL_WEIGHT["CONNECTED_PAWNS"]
+            strategical = [0,0]
+            for active_colour_index in range(2):
+                active_key_to_pawn_key = {1:"pawn", 0:"Pawn"}
+                pawn_key = active_key_to_pawn_key[active_colour_index]
+                pawn_bitboard = self.bitboard.bitboard_dict[pawn_key]
+                mobility_pawn_bitboard = self.bitboard.get_pawn_mobility(pawn_bitboard)
+                for bit in str(format(mobility_pawn_bitboard & pawn_bitboard, "064b"))[::-1]:
+                    if int(bit) == 1:
+                        strategical[active_colour_index] += self.__STRATEGICAL_WEIGHT["CONNECTED_PAWNS"]
+            return strategical
+        
+        def static_exchange_modifier():
+            """
+            Static Exchange Evalution - where advantage is given if a piece of lesser value can capture a piece of higher value and calculates
+            chains of captures and their advantage for each player
+            """
+            strategical = [0,0]
+            move_dict, key_to_index = self.bitboard.legal_move_dict
+            capture_location_to_key = {}
+            index_to_key = {}
             
-            """
-            Static Exchange Evlaution - where advantage is given if a piece of lesser value can capture a piece of higher value
-            """
-            for active_key, active_move_board in self.bitboard.bitboard_dict.items():
-                if active_key[0].isupper() == (active_colour_index == 0):
-                    for board_index, bit in enumerate(str(format(active_move_board & self.bitboard.combined_board[passive_colour_index], "064b"))[::-1]):
-                        if int(bit) == 1:
-                            passive_key = self.bitboard.index_to_piece_key(board_index)
-                            strategical[active_colour_index] += max(0, self.__PIECE_MATERIAL_WEIGHT[passive_key.upper()] - self.__PIECE_MATERIAL_WEIGHT[active_key.upper()])
-                            
-        return strategical[1], strategical[0]
+            w_board, d_board = self.bitboard.combined_board
+            w_move_board, d_move_board = self.bitboard.move_board
+            capture_board = str(format(w_board & d_board & w_move_board & d_move_board, "064b"))[::-1]
+            
+            for from_ind, to_inds in move_dict.items():
+                key = [piece for piece, from_index in key_to_index.items() if from_ind in from_index][0]
+                index_to_key[from_ind] = key
+                for to_ind in to_inds:
+                    if capture_board[to_ind] == str(0): break
+                    if capture_location_to_key[to_ind]:
+                        capture_location_to_key[to_ind].append(key)
+                    else:
+                        capture_location_to_key[to_ind] = [key]
+
+            for c_location, keys in capture_location_to_key.items():
+                if index_to_key[c_location][0].isupper():
+                    strategical[0] += self.__STRATEGICAL_WEIGHT[index_to_key[c_location].upper()]
+            
+            """for active_colour_index in range(2):
+                for move_board in self.bitboard.move_board:
+                    if move_board & self.bitboard.combined_board[active_colour_index] > 0:
+                        for index, bit in enumerate(str(format(move_board & self.bitboard.combined_board[active_colour_index], "064b"))[::-1]):
+                            if int(bit) == 1:
+                                attacked_peice = self.bitboard.index_to_piece_key(index)
+                                strategical[active_colour_index] += self.__PIECE_MATERIAL_WEIGHT[attacked_peice.upper()]"""
+                                
+            return strategical
+        
+        strategical = []
+        strategical.append(king_safety_modifier(game_phase))
+        strategical.append(mobility_modifier(game_phase))
+        strategical.append(pawn_structure_modifier())
+        strategical.append(static_exchange_modifier())
+        return [advantage[0] for advantage in strategical], [advantage[1] for advantage in strategical]
     
     @property
     def __total_advantage(self) -> (float, float):
@@ -131,14 +191,14 @@ class Engine:
         (w_positional, d_positional) = self.__positional_advantage(game_phase)
         (w_material, d_material) = self.__material_advantage(game_phase)
         
-        w_advantage = w_strategical + w_positional + w_material
-        d_advantage = d_strategical + d_positional + d_material
+        w_advantage = sum(w_strategical) + w_positional + w_material
+        d_advantage = sum(d_strategical) + d_positional + d_material
         return w_advantage, d_advantage
 
     def min_max_dict(self,
                       current_depth:int=0,
                       current_colour:str="WHITE", current_moves=None, current_key_index=None, current_origin_list=None,
-                      move_evaluation:dict={}):
+                      move_evaluation:dict={}) -> dict:
         
         def simulate_next_move(current_depth, current_colour, move_evaluation, search_move) -> dict:
             """
@@ -374,7 +434,8 @@ class Engine:
             
         return move_evaluation
     
-    def find_ordered_move_eval(self, move_evaluation):
+    @staticmethod
+    def find_ordered_move_eval(move_evaluation) -> list:
         def insert_index(num:float, num_list:list, low:int=None, mid:int=None, high:int=None) -> int:
             if None in [low, high, mid]:
                 low = 0
@@ -419,22 +480,29 @@ class Engine:
                 ordered_move_eval.insert(insert_index(move_evaluation[move], [move_eval[1] for move_eval in ordered_move_eval]), (move, move_evaluation[move]))
             else:
                 evaluation = find_best(move_evaluation[move])
-                ordered_move_eval.insert(insert_index(evaluation, [move_eval[1] for move_eval in ordered_move_eval]), (self.find_ordered_move_eval(move_evaluation[move]), evaluation, move))
+                ordered_move_eval.insert(insert_index(evaluation, [move_eval[1] for move_eval in ordered_move_eval]), (Engine.find_ordered_move_eval(move_evaluation[move]), evaluation, move))
         return ordered_move_eval
 
-
+    @staticmethod
+    def format_every_pair(dictionary, function_key):
+        def format_dict(dictionary, function_key):
+            for key, val in dictionary.items():
+                if type(val) is dict:
+                    dictionary[key] = format_dict(val, function_key)
+                    dictionary[key] = function_key(dictionary[key])
+            return dictionary
+        return function_key(format_dict(dictionary, function_key))
+    
 if __name__ == "__main__":
-    board = ".....rk........p.pN..Qp..P.p....P..............P......PK....q..."
-    bitBoard = BitBoard(board)
-    bitBoard.can_castle = {
-            "BLACK" : {"left": True, "right": True},
-            "WHITE" : {"left": True, "right": True}
-        }
-    print(bitBoard.board_formatted)
-    engine = Engine(bitBoard)
+    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+    engine = Engine(BitBoard(board))
+    print(engine.bitboard.board_formatted)
     engine.display_progress = True
     engine.max_depth = int(input("Enter a max depth: "))
     engine.max_num_searched = int(input("Enter a max num searched: "))
     engine.max_time = int(input("Enter a max time: "))
     move_evaluation = engine.min_max_dict(current_colour="BLACK")
-    print()
+    
+    format_dict_for_json = lambda dictionary: [{"key":k, "value" : v} for k, v in dictionary.items()]
+    formatted = Engine.format_every_pair(move_evaluation, format_dict_for_json)
+    pass
