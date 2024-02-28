@@ -5,13 +5,13 @@ from bitboard import BitBoard
 from enginepy import Engine
 
 class PyGameWindow:
-    def __init__(self, window_size, caption):
+    def __init__(self, window_size, caption) -> None:
         self._window_size = Vector(window_size[0], window_size[1])
         self.window = pygame.display.set_mode(window_size, pygame.RESIZABLE)
         self._caption = caption
         self._running = True
     
-    def run(self):
+    def run(self) -> None:
         while self._running:
             events = pygame.event.get()
             for event in events:
@@ -23,17 +23,18 @@ class PyGameWindow:
         pygame.quit()
     
 class SceneHandler(PyGameWindow):
-    def __init__(self, window_size, caption):
+    def __init__(self, window_size, caption) -> None:
         super().__init__(window_size, caption)
         self.__scenes = []
         self.__max_point = [Vector(0,0)]
         self.__update_local_points()
         
-    def add_scene(self, scene:Scene):
+    def add_scene(self, scene:Scene) -> object:
         self.__scenes.append(scene)
         scene.local_point = self._assign_local_point(scene)
+        return self
         
-    def __get_new_local_point(self, scene:Scene):
+    def __get_new_local_point(self, scene:Scene) -> Vector:
         local_point = Vector(0,0)
         if self.__max_point[-1].x + scene.dimensions.x > self._window_size.x:
             self.__max_point = sorted(self.__max_point, key = lambda vector: vector.y)
@@ -50,22 +51,24 @@ class SceneHandler(PyGameWindow):
             local_point.x = self.__max_point[-1].x
         return local_point
     
-    def __update_local_points(self):
+    def __update_local_points(self) -> object:
         self._scene_to_locations = {}
         self.__max_point = [Vector(0,0)]
         for scene in self.__scenes: scene.local_point = self._assign_local_point(scene)
+        return self
     
-    def _assign_local_point(self, scene:Scene):
+    def _assign_local_point(self, scene:Scene) -> Vector:
         local_point = self.__get_new_local_point(scene)
         self._scene_to_locations[scene] = (local_point, scene.dimensions)
         self.__max_point.append(Vector(self.__max_point[-1].x + scene.dimensions.x, self.__max_point[-1].y + scene.dimensions.y))
         return local_point
     
-    def while_event(self, event):
+    def while_event(self, event) -> object:
         for scene in self.__scenes:
             scene.while_event(event)
+        return self
             
-    def run(self):
+    def run(self) -> None:
         while self._running:
             events = pygame.event.get()
             for event in events:
@@ -85,6 +88,6 @@ if __name__ == "__main__":
     bitboard = BitBoard(board)
     engine = Engine(bitboard)
     window = SceneHandler((850,800), "test")
-    window.add_scene(PlayerVsComputer(800, 800, engine, bitboard))
-    window.add_scene(EvaluationBar(50, 800, engine))
+    pvc = PlayerVsComputer(800, 800, engine, bitboard)
+    window.add_scene(pvc).add_scene(EvaluationBar(50, 800, pvc))
     window.run()
