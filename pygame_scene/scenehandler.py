@@ -84,10 +84,7 @@ class SceneHandler(PyGameWindow):
 
 if __name__ == "__main__":
     pygame.init()
-    board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
-    bitboard = BitBoard(board)
-    engine = Engine(bitboard)
     window = SceneHandler((850,800), "test")
-    pvc = PlayerVsComputer(800, 800, engine, bitboard)
-    window.add_scene(pvc).add_scene(EvaluationBar(50, 800, pvc))
+    pvc = PlayerVsComputer(800, 800)
+    window.add_scene(pvc).add_scene(EvaluationBar(50, pvc))
     window.run()

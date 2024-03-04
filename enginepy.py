@@ -29,6 +29,7 @@ class Engine:
         self.__STRATEGICAL_WEIGHT = engine_data["STRATEGICAL_WEIGHT"]
         self.__STRATEGICAL_WEIGHT = {key:(format_table(value) if key in ["MOBILITY", "EMOBILITY"] else value) for key, value in self.__STRATEGICAL_WEIGHT.items()}
         
+        self.move_evaluation = {}
         self.bitboard = bitboard
         self.enum_piece_to_name = {
             BitBoard.piece.PAWN : "PAWN",
@@ -440,6 +441,7 @@ class Engine:
             
         while within_maxes() and current_depth <= self.__current_highest_depth and type(move_evaluation) == dict:
             if current_depth == 0:
+                self.move_evaluation = move_evaluation
                 self.__current_highest_depth += 1
             
             sorted_moves = sort_move_evaluation_keys(move_evaluation)

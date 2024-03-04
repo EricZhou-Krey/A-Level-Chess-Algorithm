@@ -675,7 +675,7 @@ class BitBoard(IPiece):
                         
         return legal_move_dict, legal_key_index
     @property
-    def split_move_dict(self) -> dict[({int,int}, {str,int}), ({int,int}, {str,int})]:
+    def split_move_dict(self) -> dict[Enum, (dict[int,int], dict[str,int])]:
         move_dict, key_index = self.legal_move_dict
         w_move_dict = {}
         w_key = {}
