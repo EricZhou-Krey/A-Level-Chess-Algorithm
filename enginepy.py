@@ -241,7 +241,6 @@ class Engine:
                         new_colour, None, None, None,
                         move_evaluation[search_move])
             self.bitboard.revert_move()
-            return move_evaluation
         
         def get_moves_key_origin(bitboard:BitBoard, colour:Enum) -> tuple[dict, dict, list]:
             """
@@ -447,7 +446,7 @@ class Engine:
             sorted_moves = sort_move_evaluation_keys(move_evaluation)
             for search_move in sorted_moves:
                 
-                move_evaluation = simulate_next_move(current_depth, current_colour, move_evaluation, search_move)
+                simulate_next_move(current_depth, current_colour, move_evaluation, search_move)
                 
                 if not(within_maxes()):
                     break
