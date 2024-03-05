@@ -303,7 +303,7 @@ class BitBoard(IPiece):
         result += " ".join("ABCDEFGH") + "\n"
         return result
       
-    def _edit_board(self, move:tuple) -> object:
+    def edit_board(self, move:tuple) -> object:
         """
         Promote piece board is updated if promotion is assigned
         The to location is checked to replace a captured piece and the bitwise XOR is applied
@@ -397,7 +397,7 @@ class BitBoard(IPiece):
                     castle_origin = origin_index + 3
                     castle_to = origin_index + 1
                 if castle_origin >= 0 and castle_to >= 0:
-                    self._edit_board((castle_piece, castle_origin, castle_to))
+                    self.edit_board((castle_piece, castle_origin, castle_to))
                     if piece_colour == BitBoard.colour.BLACK:
                         self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.RIGHT] = (False, self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.RIGHT])
                         self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.LEFT] = (False, self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.LEFT])
@@ -450,7 +450,7 @@ class BitBoard(IPiece):
         else:
             revert_move = (piece, to_index, origin_index)
         
-        self._edit_board(revert_move)
+        self.edit_board(revert_move)
         
         if captured:
             self.__bitboard_dict[capture_key] |= capture_bit
@@ -494,7 +494,7 @@ class BitBoard(IPiece):
                     castle_to = origin_index + 3
                     castle_origin = origin_index + 1
                 if castle_to >= 0 and castle_origin >= 0:
-                    self._edit_board((castle_piece, castle_origin, castle_to))
+                    self.edit_board((castle_piece, castle_origin, castle_to))
             elif origin_index == 60:
                 self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.LEFT] = self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.LEFT][1]
                 self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.RIGHT] = self.can_castle[BitBoard.colour.BLACK][BitBoard.direction.RIGHT][1]

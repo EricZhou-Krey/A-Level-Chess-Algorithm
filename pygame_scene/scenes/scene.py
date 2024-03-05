@@ -65,7 +65,8 @@ class Scene:
         pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y))
 
 class GameScene(Scene):
-    TURN = Enum("TURN", ["PLAYER", "COMPUTER"])
+    turn = Enum("turn", ["PLAYER", "COMPUTER"])
+    update_type = Enum("update_type", ["EDIT", "APPLY", "REVERT"])
     def __init__(self, width, height, bitboard=None):
         super().__init__(width, height)
         self.observers : list[GameObserver] = []
@@ -90,6 +91,7 @@ class GameScene(Scene):
             self.bitboard = BitBoard(board)
         else:
             self.bitboard = bitboard
+        self._legal_moves = self.bitboard.legal_move_dict[0]
         
         """
         The notation board is extracted from the newly linked bitboard and formatted into a list with correct notation
@@ -117,8 +119,18 @@ class GameScene(Scene):
         for observer in self.observers:
             observer.resize_signal(self)
             
-    def update_board(self, move):
-        self.bitboard.apply_move(move)
+    def update_board(self, move:tuple=None, type=None):
+        type = type if type else self.update_type.APPLY
+        match type:
+            case self.update_type.APPLY:
+                self.bitboard.apply_move(move)
+                
+            case self.update_type.EDIT:
+                self.bitboard.edit_board(move)
+    
+            case self.update_type.REVERT:
+                self.bitboard.revert_move()
+                
         self._legal_moves = self.bitboard.split_move_dict[self.current_turn[0]][0]
         self.notation_board = self._updated_display_board(self)
         for observer in self.observers:
@@ -138,7 +150,6 @@ class PlayerVsComputer(GameScene):
         self.__mouse_held_position = None
         self.__drag_start_time = None
         self.__selected_tile = None
-        self._legal_moves = self.bitboard.legal_move_dict[0]
         
         """
         GUI colours for different features of the scene will be moved to json file later
@@ -238,15 +249,21 @@ class PlayerVsComputer(GameScene):
     
     def make_move(self, move):
         self.switch_colour(self.current_turn)
-        super().update_board(move)
+        self.update_board(move)
         #vreating new thread too slowly in succession, should create queue system to manage the requests
         self.evaluation_component.update_thread(move)
 
+class Queue():
+    def __init__(self) -> None:
+        pass
+    
+    #move evaluation could be used as reference
+    
 class EvaluationComponent():
     def __init__(self, parent : GameScene) -> None:
         self.bitboard = parent.bitboard
         self.current_turn = parent.current_turn
-        self.update_queue = []
+        self.update_queue = [] #
         self.__last_move = None # chage to list queue
         self.__evaluation_threads = [EvaluationThread(self)]
         self.__evaluation_threads[-1].start()

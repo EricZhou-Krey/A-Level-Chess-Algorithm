@@ -367,6 +367,7 @@ class Engine:
         
         if self.__start_time == None:
             self.__start_time = time.time()
+            self.move_evaluation = move_evaluation
             
         if current_colour == None:
             current_colour = BitBoard.colour.WHITE
@@ -441,7 +442,6 @@ class Engine:
             
         while within_maxes() and current_depth <= self.__current_highest_depth and type(move_evaluation) == dict:
             if current_depth == 0:
-                self.move_evaluation = move_evaluation
                 self.__current_highest_depth += 1
             
             sorted_moves = sort_move_evaluation_keys(move_evaluation)
