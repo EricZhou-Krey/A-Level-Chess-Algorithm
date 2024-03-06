@@ -409,7 +409,7 @@ class Engine:
                         applied_move = (applied_piece_key, applied_origin, applied_to)
                     else:
                         applied_to, promote_key = applied_to
-                        applied_move = (applied_piece_key, applied_origin, applied_to, promote_key)
+                        applied_move = (applied_piece_key, applied_origin, applied_to)
                     self.bitboard.apply_move(applied_move)
                     
                     w_evaluation, d_evaluation = self.__total_advantage

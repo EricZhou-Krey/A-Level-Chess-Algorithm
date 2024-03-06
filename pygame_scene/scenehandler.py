@@ -1,5 +1,5 @@
 import pygame, sys
-from scenes.scene import Scene, PlayerVsComputer, EvaluationBar, Vector
+from scenes.scene import Scene, PlayerVsPlayer, EvaluationBar, Vector, SceneObserver
 sys.path.append("../A-Level-Chess-Algorithm")
 from bitboard import BitBoard
 from enginepy import Engine
@@ -22,16 +22,17 @@ class PyGameWindow:
             pygame.display.flip()
         pygame.quit()
     
-class SceneHandler(PyGameWindow):
+class SceneHandler(PyGameWindow, SceneObserver):
     def __init__(self, window_size, caption) -> None:
-        super().__init__(window_size, caption)
+        PyGameWindow.__init__(self, window_size, caption)
         self.__scenes = []
         self.__max_point = [Vector(0,0)]
-        self.update_local_points()
+        self.__update_local_points()
         
     def add_scene(self, scene:Scene) -> object:
         self.__scenes.append(scene)
         scene.local_point = self._assign_local_point(scene)
+        scene.observers.append(self)
         return self
         
     def __get_new_local_point(self, scene:Scene) -> Vector:
@@ -51,7 +52,7 @@ class SceneHandler(PyGameWindow):
             local_point.x = self.__max_point[-1].x
         return local_point
     
-    def update_local_points(self) -> object:
+    def __update_local_points(self) -> object:
         self._scene_to_locations = {}
         self.__max_point = [Vector(0,0)]
         for scene in self.__scenes: scene.local_point = self._assign_local_point(scene)
@@ -67,7 +68,10 @@ class SceneHandler(PyGameWindow):
         for scene in self.__scenes:
             scene.while_event(event)
         return self
-            
+    
+    def resize_signal(self, parent):
+        self.__update_local_points()
+
     def run(self) -> None:
         while self._running:
             events = pygame.event.get()
@@ -76,7 +80,7 @@ class SceneHandler(PyGameWindow):
                     self._running = False
                 elif event.type == pygame.VIDEORESIZE:
                     self._window_size = Vector(event.w, event.h)
-                    self.update_local_points()
+                    self.__update_local_points()
                 self.while_event(event)
             for scene in self.__scenes: scene.draw(self.window)
             pygame.display.flip()
@@ -85,6 +89,6 @@ class SceneHandler(PyGameWindow):
 if __name__ == "__main__":
     pygame.init()
     window = SceneHandler((850,800), "test")
-    pvc = PlayerVsComputer(800, 800)
-    window.add_scene(pvc).add_scene(EvaluationBar(50, pvc))
+    pvc = PlayerVsPlayer(800, 800)
+    window.add_scene(pvc).add_scene(EvaluationBar(pvc, 50))
     window.run()
