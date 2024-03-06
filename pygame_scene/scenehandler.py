@@ -27,7 +27,7 @@ class SceneHandler(PyGameWindow):
         super().__init__(window_size, caption)
         self.__scenes = []
         self.__max_point = [Vector(0,0)]
-        self.__update_local_points()
+        self.update_local_points()
         
     def add_scene(self, scene:Scene) -> object:
         self.__scenes.append(scene)
@@ -51,7 +51,7 @@ class SceneHandler(PyGameWindow):
             local_point.x = self.__max_point[-1].x
         return local_point
     
-    def __update_local_points(self) -> object:
+    def update_local_points(self) -> object:
         self._scene_to_locations = {}
         self.__max_point = [Vector(0,0)]
         for scene in self.__scenes: scene.local_point = self._assign_local_point(scene)
@@ -76,7 +76,7 @@ class SceneHandler(PyGameWindow):
                     self._running = False
                 elif event.type == pygame.VIDEORESIZE:
                     self._window_size = Vector(event.w, event.h)
-                    self.__update_local_points()
+                    self.update_local_points()
                 self.while_event(event)
             for scene in self.__scenes: scene.draw(self.window)
             pygame.display.flip()

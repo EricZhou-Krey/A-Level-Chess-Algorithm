@@ -57,6 +57,8 @@ class Scene:
         self.local_point = None
         self.dimensions = Vector(width, height)
         
+        self.observers : list[SceneObserver] = []
+        
     def while_event(self, event):
         pass
     
@@ -250,47 +252,78 @@ class PlayerVsComputer(GameScene):
     def make_move(self, move):
         self.switch_colour(self.current_turn)
         self.update_board(move)
-        #vreating new thread too slowly in succession, should create queue system to manage the requests
         self.evaluation_component.update_thread(move)
 
 class Queue():
-    def __init__(self) -> None:
-        pass
+    def __init__(self, *args) -> None:
+        self.__values = dict(enumerate(args))
+        self.__head = 0
+        self.__tail = 0
+    @property
+    def has_values(self):
+        return bool(self.__values)
     
-    #move evaluation could be used as reference
+    def pop(self):
+        self.__head += 1
+        return self.__values.pop(self.__head-1)
+    
+    def push(self, value):
+        self.__values[self.__tail] = value
+        self.__tail += 1
     
 class EvaluationComponent():
     def __init__(self, parent : GameScene) -> None:
         self.bitboard = parent.bitboard
         self.current_turn = parent.current_turn
-        self.update_queue = [] #
-        self.__last_move = None # chage to list queue
-        self.__evaluation_threads = [EvaluationThread(self)]
+        self.update_queue = Queue() 
+        self.__update_move = None
+        self.__evaluation_threads = [EvaluationThread(self, daemon=True)]
         self.__evaluation_threads[-1].start()
-    
+
     def update_thread(self, move:tuple):
-        self.__last_move = move
+        if self.__update_move:
+            self.update_queue.push(move)
+            return
+        self.__update_move = move
         self.__evaluation_threads[-1].engine.max_time = 0
-        
+    
     def create_new_thread(self, move_evaluation):
-        self.__evaluation_threads.append(EvaluationThread(self, move_evaluation[self.__last_move] \
-            if type(move_evaluation[self.__last_move]) is dict else None))
+        move_evaluation = move_evaluation[self.__update_move] if move_evaluation and self.__update_move in move_evaluation.keys() \
+            and type(move_evaluation[self.__update_move]) is dict else {}
+            
+        self.__evaluation_threads.append(EvaluationThread(self, move_evaluation, self.current_turn[0], daemon=True))
         self.__evaluation_threads[-1].start()
-        
+        self.__update_move = None
+        if self.update_queue.has_values:
+            self.update_thread(self.update_queue.pop())
+    
+    def best_moves(self):
+        return self.__evaluation_threads[-1].engine.find_ordered_move_eval(self.__evaluation_threads[-1].engine.move_evaluation)
+    
 class EvaluationThread(threading.Thread):
-    def __init__(self, evaluation_component : EvaluationComponent, move_evaluation : dict = None) -> None:
-        super().__init__()
+    def __init__(self, evaluation_component : EvaluationComponent, move_evaluation : dict = None, current_colour = None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.parent = evaluation_component
         self.static_bitboard = self.parent.bitboard
         self.engine = Engine(copy.deepcopy(self.static_bitboard))
-        self.move_evaluation = move_evaluation
-        self.best_moves = Engine.find_ordered_move_eval(self.move_evaluation) if self.move_evaluation else []
+        self.__move_evaluation = move_evaluation
+        self.__current_colour = current_colour
         
     def run(self):
         self.engine.max_time = math.inf
-        self.move_evaluation = self.engine.min_max_dict(current_colour=self.parent.current_turn[0])
-        self.parent.create_new_thread(self.move_evaluation)
+        self.engine.min_max_dict(current_colour=self.__current_colour, move_evaluation=self.__move_evaluation)
+        self.parent.create_new_thread(self.engine.move_evaluation)
 
+#configure obserers where the game observer is subclass of scene observers all below subject to change
+#will change later
+
+class SceneObserver():
+    def __init__(self, scene : Scene):
+        scene.observers.append(self)
+    
+    def resize_signal(self, parent):
+        pass
+    
 class GameObserver(Scene):
     def __init__(self, width, height, game_scene : Scene):
         super().__init__(width, height)
@@ -299,9 +332,6 @@ class GameObserver(Scene):
     def draw(self, window):
         pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y))
     
-    def resize_signal(self, parent : GameScene):
-        pass
-    
     def update_board_signal(self, parent : GameScene):
         pass
     
@@ -309,5 +339,7 @@ class EvaluationBar(GameObserver):
     def __init__(self, width, game_scene : Scene, height=0):
         super().__init__(width, height, game_scene)
         self.dimensions.y = game_scene.dimensions.y
-        self.__current_move_eval = None
-        self.__current_move = None
+    
+    def resize_signal(self, parent: GameScene):
+        self.dimensions.y = parent.dimensions.y
+        
