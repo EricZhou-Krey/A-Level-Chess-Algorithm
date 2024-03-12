@@ -51,8 +51,8 @@ def test_material_advantage():
     
     expected_values = engine._Engine__PIECE_MATERIAL_WEIGHT
     for piece_name in piece_names:
-        engine.bitboard._edit_board(((piece_name, BitBoard.colour.WHITE), 0, 0))
-        engine.bitboard._edit_board(((piece_name, BitBoard.colour.BLACK), 63, 63))
+        engine.bitboard.edit_board(((piece_name, BitBoard.colour.WHITE), 0, 0))
+        engine.bitboard.edit_board(((piece_name, BitBoard.colour.BLACK), 63, 63))
         assert engine._Engine__material_advantage(1) == (expected_values[BitBoard.enum_to_string(piece_name)], expected_values[BitBoard.enum_to_string(piece_name)])
         assert engine._Engine__material_advantage(0) == (expected_values["E"+BitBoard.enum_to_string(piece_name)], expected_values["E"+BitBoard.enum_to_string(piece_name)])
 
@@ -66,14 +66,14 @@ def test_positional_advantage():
     
     for piece_name in piece_names:
         for index in range(63):
-            engine.bitboard._edit_board(((piece_name, BitBoard.colour.WHITE), index, index))
+            engine.bitboard.edit_board(((piece_name, BitBoard.colour.WHITE), index, index))
             assert engine._Engine__positional_advantage(1) == (expected_values[BitBoard.enum_to_string(piece_name)][index], 0)
             assert engine._Engine__positional_advantage(0) == (expected_values["E"+BitBoard.enum_to_string(piece_name)][index], 0)
-            engine.bitboard._edit_board((None, index, index))
-            engine.bitboard._edit_board(((piece_name, BitBoard.colour.BLACK), index, index))
+            engine.bitboard.edit_board((None, index, index))
+            engine.bitboard.edit_board(((piece_name, BitBoard.colour.BLACK), index, index))
             assert engine._Engine__positional_advantage(1) == (0, expected_values[BitBoard.enum_to_string(piece_name)][::-1][index])
             assert engine._Engine__positional_advantage(0) == (0, expected_values["E"+BitBoard.enum_to_string(piece_name)][::-1][index])
-            engine.bitboard._edit_board((None, index, index))
+            engine.bitboard.edit_board((None, index, index))
             
 def test_strategical_advantage_null():
     board = "................................................................"

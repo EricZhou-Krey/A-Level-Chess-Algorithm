@@ -111,9 +111,9 @@ def test_king():
 def test_edit_board():
     board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
     bitBoard = BitBoard(board)
-    bitBoard._edit_board(((bitBoard.piece.KNIGHT, bitBoard.colour.WHITE), 1, 16))
+    bitBoard.edit_board(((bitBoard.piece.KNIGHT, bitBoard.colour.WHITE), 1, 16))
     assert bitBoard.board_formatted == 'R N B Q K B N R 0\nP P P P P P P P 1\n. . . . . . . . 2\n. . . . . . . . 3\n. . . . . . . . 4\nn . . . . . . . 5\np p p p p p p p 6\nr . b q k b n r 7\nA B C D E F G H\n'
-    bitBoard._edit_board(((bitBoard.piece.KNIGHT, bitBoard.colour.WHITE), 16, 1))
+    bitBoard.edit_board(((bitBoard.piece.KNIGHT, bitBoard.colour.WHITE), 16, 1))
     assert bitBoard.board_formatted == 'R N B Q K B N R 0\nP P P P P P P P 1\n. . . . . . . . 2\n. . . . . . . . 3\n. . . . . . . . 4\n. . . . . . . . 5\np p p p p p p p 6\nr n b q k b n r 7\nA B C D E F G H\n'
     
 def test_apply_move():

@@ -1,4 +1,7 @@
-import math, time, json, numpy
+import math
+from json import loads as json_loads
+from numpy import array as np_array
+from time import time
 from bitboard import BitBoard
 from enum import Enum
 
@@ -21,7 +24,7 @@ class Engine:
         
         with open("engine_weight.json", "r") as engine_weight:
             engine_data = engine_weight.read()
-        engine_data = json.loads(engine_data)
+        engine_data = json_loads(engine_data)
         
         self.__PIECE_MATERIAL_WEIGHT = engine_data["PIECE_MATERIAL_WEIGHT"]
         self.__PIECE_POSITIONAL_WEIGHT = engine_data["PIECE_POSITIONAL_WEIGHT"]
@@ -47,7 +50,7 @@ class Engine:
         
         self.__num_searched = 0
         self.__start_time = None
-        self.__current_highest_depth =  0
+        self.current_highest_depth =  0
         
         self.__alpha = math.inf #upper bound for black
         self.__beta = -math.inf #lower bound for white
@@ -330,8 +333,8 @@ class Engine:
                     del vector[0]
                 vector.append(0)
                 
-                evaluation_list = numpy.array(evaluation_list)
-                vector = numpy.array(vector)
+                evaluation_list = np_array(evaluation_list)
+                vector = np_array(vector)
                 
                 ordered_move_list = []
                 for evaluation in evaluation_list[vector]:
@@ -344,8 +347,8 @@ class Engine:
         
         def display_progress() -> None:
             result = ""
-            for limit, current, desc in [[self.max_time, round(time.time() - self.__start_time, 3), "Time to finish"], \
-                [self.max_depth, self.__current_highest_depth, "Depth to finish"], \
+            for limit, current, desc in [[self.max_time, round(time() - self.__start_time, 3), "Time to finish"], \
+                [self.max_depth, self.current_highest_depth, "Depth to finish"], \
                 [self.max_num_searched, self.__num_searched, "Num search to finish"]]:
                 if limit != math.inf:
                     result += desc + " " + str(round(current/limit, 3)) + " "
@@ -365,7 +368,7 @@ class Engine:
         """
         
         if self.__start_time == None:
-            self.__start_time = time.time()
+            self.__start_time = time()
             self.move_evaluation = move_evaluation
             
         if current_colour == None:
@@ -374,7 +377,7 @@ class Engine:
         if None in [current_moves, current_key_index, current_origin_list]:
                 current_moves, current_key_index, current_origin_list = get_moves_key_origin(self.bitboard, current_colour)
                 
-        if current_depth == self.__current_highest_depth:
+        if current_depth == self.current_highest_depth:
             if not(type(move_evaluation) is dict):
                 move_evaluation = {}
                 
@@ -436,12 +439,12 @@ class Engine:
         """
         
         within_maxes = lambda : self.max_num_searched > self.__num_searched and \
-            self.max_depth > self.__current_highest_depth and \
-            (time.time() - self.__start_time) < self.max_time
+            self.max_depth > self.current_highest_depth and \
+            (time() - self.__start_time) < self.max_time
             
-        while within_maxes() and current_depth <= self.__current_highest_depth and type(move_evaluation) == dict:
+        while within_maxes() and current_depth <= self.current_highest_depth and type(move_evaluation) == dict:
             if current_depth == 0:
-                self.__current_highest_depth += 1
+                self.current_highest_depth += 1
             
             sorted_moves = sort_move_evaluation_keys(move_evaluation)
             for search_move in sorted_moves:
@@ -451,7 +454,7 @@ class Engine:
                 if not(within_maxes()):
                     break
                 
-                if current_depth + 1 == self.__current_highest_depth:
+                if current_depth + 1 == self.current_highest_depth:
                     update_alpha_beta(current_colour, move_evaluation, search_move)
                     
             if current_depth != 0:
@@ -501,8 +504,8 @@ class Engine:
                 ordered_move_eval.insert(insert_index(move_evaluation[move], [move_eval[1] for move_eval in ordered_move_eval]), (move, move_evaluation[move]))
             else:
                 evaluation = find_best(move_evaluation[move])
-                ordered_move_eval.insert(insert_index(evaluation, [move_eval[1] for move_eval in ordered_move_eval]), (Engine.find_ordered_move_eval(move_evaluation[move]), evaluation, move))
-        return ordered_move_eval
+                ordered_move_eval.insert(insert_index(evaluation, [move_eval[1] for move_eval in ordered_move_eval]), (move, evaluation)) #optionally add Engine.find_ordered_move_eval(move_evaluation[move]
+        return ordered_move_eval 
 
     @staticmethod
     def format_every_pair(dictionary, function_key) -> dict:

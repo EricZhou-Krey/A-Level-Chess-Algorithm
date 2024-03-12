@@ -1,8 +1,6 @@
 import pygame, sys
-from scenes.scene import Scene, PlayerVsPlayer, EvaluationBar, Vector, SceneObserver
 sys.path.append("../A-Level-Chess-Algorithm")
-from bitboard import BitBoard
-from enginepy import Engine
+from pygame_scene.scenes.game_scene import Scene, PlayerVsPlayer, ComputerVsComputer, PlayerVsComputer, EvaluationBar, Vector, SceneObserver
 
 class PyGameWindow:
     def __init__(self, window_size, caption) -> None:
@@ -25,7 +23,7 @@ class PyGameWindow:
 class SceneHandler(PyGameWindow, SceneObserver):
     def __init__(self, window_size, caption) -> None:
         PyGameWindow.__init__(self, window_size, caption)
-        self.__scenes = []
+        self.__scenes : list[Scene] = []
         self.__max_point = [Vector(0,0)]
         self.__update_local_points()
         
@@ -72,9 +70,18 @@ class SceneHandler(PyGameWindow, SceneObserver):
     def resize_signal(self, parent):
         self.__update_local_points()
 
+    def stop_signal(self, parent):
+        self.__scenes.remove(parent)
+        
+    def while_update(self):
+        for scene in self.__scenes:
+            scene.while_update()
+        return self
+    
     def run(self) -> None:
         while self._running:
             events = pygame.event.get()
+            self.while_update()
             for event in events:
                 if event.type == pygame.QUIT:
                     self._running = False
@@ -89,6 +96,6 @@ class SceneHandler(PyGameWindow, SceneObserver):
 if __name__ == "__main__":
     pygame.init()
     window = SceneHandler((850,800), "test")
-    pvc = PlayerVsPlayer(800, 800)
-    window.add_scene(pvc).add_scene(EvaluationBar(pvc, 50))
+    game_scene = ComputerVsComputer(800, 800)
+    window.add_scene(game_scene).add_scene(EvaluationBar(game_scene, 50))
     window.run()
