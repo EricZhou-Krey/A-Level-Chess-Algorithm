@@ -19,11 +19,12 @@ class PyGameWindow:
                     self._window_size = Vector(event.w, event.h)
             pygame.display.flip()
         pygame.quit()
-    
+
 class SceneHandler(PyGameWindow, SceneObserver):
     def __init__(self, window_size, caption) -> None:
         PyGameWindow.__init__(self, window_size, caption)
         self.__scenes : list[Scene] = []
+        self.__overlay_scene : list[Scene] = []
         self.__max_point = [Vector(0,0)]
         self.__update_local_points()
         
@@ -31,6 +32,11 @@ class SceneHandler(PyGameWindow, SceneObserver):
         self.__scenes.append(scene)
         scene.local_point = self._assign_local_point(scene)
         scene.observers.append(self)
+        return self
+    
+    def add_overlay(self, overlay:Scene, local_point:Vector) -> object:
+        self.__overlay_scene.append(overlay)
+        overlay.local_point = local_point
         return self
         
     def __get_new_local_point(self, scene:Scene) -> Vector:
@@ -69,9 +75,6 @@ class SceneHandler(PyGameWindow, SceneObserver):
     
     def resize_signal(self, parent):
         self.__update_local_points()
-
-    def stop_signal(self, parent):
-        self.__scenes.remove(parent)
         
     def while_update(self):
         for scene in self.__scenes:

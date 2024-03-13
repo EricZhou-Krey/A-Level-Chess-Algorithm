@@ -1,6 +1,6 @@
 import sys, pygame, time, threading, copy, math
 sys.path.append("../A-Level-Chess-Algorithm")
-from scenes.scene import Scene, SceneObserver
+from pygame_scene.scenes.scene import Scene, SceneObserver
 from enum import Enum
 from my_dataclass import Vector, Queue
 from bitboard import BitBoard
@@ -389,10 +389,7 @@ class EvaluationBar(GameObserver, Scene):
         
     def resize_signal(self, parent: GameScene):
         self.dimensions.y = parent.dimensions.y
-    
-    def stop_signal(self, parent):
-        self.stop()
-    
+
     def draw(self, window):
         Scene.draw(self, window)
         evaluation = self.parent.evaluation_component.best_moves()

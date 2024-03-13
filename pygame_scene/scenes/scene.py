@@ -23,11 +23,42 @@ class Scene:
         # Default white rect on dimensions area
         pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y))
     
-    def stop(self):
+    def __delete__(self):
         print("Ended scene:", self.__class__)
-        for observer in self.observers:
-            observer.stop_signal(self)
             
+            
+
+
+class Button(Scene): # in progress
+    def __init__(self, width, height):
+        super().__init__(width, height)
+        self.observers : list[ButtonObserver] = []
+    
+    def while_event(self, event):
+        match event.type:
+            case pygame.MOUSEBUTTONDOWN:
+                pass
+            case pygame.MOUSEBUTTONUP:
+                pass
+    
+    
+    def draw(self, window):
+        return super().draw(window)
+
+class ButtonObserver():
+    def __init__(self) -> None:
+        pass
+
+class TextBox(Button): # in progress
+    def __init__(self, width, height):
+        super().__init__(width, height)
+    
+class TextBoxObserver(Button):
+    def __init__(self, width, height):
+        super().__init__(width, height)
+        
+        
+                   
 class SceneObserver():
     def __init__(self, scene : Scene):
         scene.observers.append(self)
