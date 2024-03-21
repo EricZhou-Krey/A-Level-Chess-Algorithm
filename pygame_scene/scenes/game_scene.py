@@ -31,21 +31,17 @@ class GameScene(Scene):
         
         if not(bitboard):
             board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
-            self.bitboard = BitBoard(board)
+            self.bitboard : BitBoard = BitBoard(board)
         else:
-            self.bitboard = bitboard
+            self.bitboard : BitBoard = bitboard
         self._legal_moves = self.bitboard.legal_move_dict[0]
         
         """
         The notation board is extracted from the newly linked bitboard and formatted into a list with correct notation
         to refer to the images loaded previously
         """
-        self.within_board = lambda vector : self.local_point.x < vector.x < self.local_point.x + self.dimensions.x and \
-                                self.local_point.y < vector.y < self.local_point.y + self.dimensions.y
         self.vector_to_index = lambda vector : vector.x + (8 * (7 - vector.y))
         self.index_to_vector = lambda index : Vector((index % 8), (7 - (index//8)))
-        self.vector_in_local_area = lambda vector : (self.local_point.x < vector.x < self.local_point.x + self.dimensions.x) and \
-                        (self.local_point.y < vector.y < self.local_point.y + self.dimensions.y)
         
         self._updated_display_board = lambda self : [row[:15].split(" ") for row in self.bitboard.board_formatted[:141].split("\n")[:9]]
         self.notation_board = self._updated_display_board(self)
@@ -82,6 +78,7 @@ class GameScene(Scene):
                 else: pygame.draw.rect(window, self._object_colour["DARK"], tile_rect)
                 if notation != ".":
                     window.blit(self.notation_to_image[notation], (c_index * (self.dimensions.x // 8), r_index * (self.dimensions.y // 8)))
+        super().draw(window)
     
     def update_board(self, move:tuple=None, u_type=None):
         u_type = u_type if u_type else self.update_type.APPLY
@@ -97,12 +94,12 @@ class GameScene(Scene):
                 
         self._legal_moves = self._player_legal_move(self.bitboard)
         
-        #checkmate trigger
+        """#checkmate trigger
         if not(self._legal_moves) and input(str("Enter anything to exit game scene: ")):
             if self.bitboard.king_safe(self.current_turn[0]):
                 print("Stalemate, draw")
             else:
-                print(f"Checkmate, {self.current_turn[0]} loses")
+                print(f"Checkmate, {self.current_turn[0]} loses")"""
                 
         self.notation_board = self._updated_display_board(self)
         for observer in self.observers:
@@ -112,7 +109,6 @@ class GameScene(Scene):
     def make_move(self, move:tuple=None):
         self.update_board(move)
             
-    
 class GameObserver(SceneObserver):
     def __init__(self, game_scene : Scene):
         super().__init__(game_scene)
@@ -133,7 +129,7 @@ class EvaluationBar(GameObserver, Scene):
         self.dimensions.y = parent.dimensions.y
     
     def draw(self, window):
-        Scene.draw(self, window)
+        pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y))
         evaluation = self.parent.evaluation_component.best_moves()
         if evaluation:
             number_eval = evaluation[0][1]
@@ -144,13 +140,11 @@ class EvaluationBar(GameObserver, Scene):
             text_rect = text.get_rect()
             text_rect.x, text_rect.y = self.local_point.x, self.local_point.y
             window.blit(text, text_rect)
-            
+        super().draw(window)
 
 class PlayerComponent():
     def __init__(self, parent : GameScene) -> None:
         self.parent = parent
-        self.mouse_to_vector = lambda mouse_x, mouse_y : Vector(mouse_x, mouse_y) // (self.parent.dimensions // 8)
-        
         self.DRAG_DELAY = 0.5
         self.mouse_held_position = None
         self.drag_start_time = None
@@ -180,14 +174,13 @@ class PlayerComponent():
         
     def click_event(self, event, legal_moves):
         match event.button:
-            case 1: 
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                self.mouse_held_position = Vector(mouse_x, mouse_y)
-                if self.parent.vector_in_local_area(Vector(mouse_x, mouse_y)):
+            case 1:
+                self.mouse_held_position = Vector(*pygame.mouse.get_pos())
+                if self.parent.vector_in_local_area(self.mouse_held_position):
                     if self.selected_tile:
-                        self.make_move_if_legal(self.mouse_to_vector(mouse_x, mouse_y), legal_moves)
+                        self.make_move_if_legal(self.mouse_held_position // (self.parent.dimensions // 8), legal_moves)
                     else:
-                        self.selected_tile = Vector(mouse_x, mouse_y) // (self.parent.dimensions // 8)
+                        self.selected_tile = self.mouse_held_position // (self.parent.dimensions // 8)
                         self.drag_start_time = time.time()
             case 3:
                 self.selected_tile = None
@@ -196,11 +189,11 @@ class PlayerComponent():
         match event.button:
             case 1:
                 self.mouse_held_position = None
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                if self.parent.vector_in_local_area(Vector(mouse_x, mouse_y)):
+                mouse_vector = Vector(*pygame.mouse.get_pos())
+                if self.parent.vector_in_local_area(mouse_vector) and self.drag_start_time:
                     if (time.time() - self.drag_start_time) > self.DRAG_DELAY:
                         if self.selected_tile:
-                            self.make_move_if_legal(self.mouse_to_vector(mouse_x, mouse_y), legal_moves)
+                            self.make_move_if_legal(mouse_vector // (self.parent.dimensions // 8), legal_moves)
                             
     def mouse_motion_event(self, event):
         if self.selected_tile and self.mouse_held_position:
@@ -225,7 +218,7 @@ class PlayerComponent():
                 if self.selected_tile and (c_index, r_index) == (self.selected_tile.x, self.selected_tile.y):
                     pygame.draw.rect(window, object_colour["SELECT"], tile_rect)
                     if notation != ".":
-                        if self.mouse_held_position and self.parent.within_board(self.mouse_held_position):
+                        if self.mouse_held_position and self.parent.vector_in_local_area(self.mouse_held_position):
                             selected_piece_drag_position = (self.mouse_held_position.x - ((self.parent.dimensions.x // 8) // 2), self.mouse_held_position.y - ((self.parent.dimensions.y // 8) // 2))
                             selected_notation = notation
                         else:
@@ -288,7 +281,7 @@ class EvaluationThread(threading.Thread):
             
             
 class PlayerVsPlayer(GameScene):
-    def __init__(self, width, height, bitboard=None):
+    def __init__(self, width, height, bitboard:BitBoard=None):
         super().__init__(width, height, bitboard)
         self.evaluation_component = EvaluationComponent(self)
         self.player_componenet = PlayerComponent(self)
@@ -304,12 +297,13 @@ class PlayerVsPlayer(GameScene):
                 self.player_componenet.release_event(event, self._legal_moves)
             case pygame.MOUSEMOTION:
                 self.player_componenet.mouse_motion_event(event)
+        Scene.while_event(self, event)
                 
     def draw(self, window):
         if self.player_componenet.selected_tile:
             self.player_componenet.draw_board_with_selection(window, self._legal_moves, self._object_colour)
             return
-        super().draw(window)
+        GameScene.draw(self, window)
     
     def make_move(self, move):
         self.switch_colour(self.current_turn)
@@ -331,6 +325,7 @@ class PlayerVsComputer(GameScene):
             self.evaluation_component.current_thread_depth() > 0 and not(self.evaluation_component.played):
             self.make_move(best_move[-1][0] if self.computer_colour == BitBoard.colour.BLACK else best_move[0][0])
             self.evaluation_component.played = True
+        Scene.while_update(self)
         
     def while_event(self, event):
         match event.type:
@@ -342,12 +337,13 @@ class PlayerVsComputer(GameScene):
                 self.player_componenet.release_event(event, self._legal_moves)
             case pygame.MOUSEMOTION:
                 self.player_componenet.mouse_motion_event(event)
+        Scene.while_event(self, event)
     
     def draw(self, window):
         if self.player_componenet.selected_tile:
             self.player_componenet.draw_board_with_selection(window, self._legal_moves, self._object_colour)
             return
-        super().draw(window)
+        GameScene.draw(self, window)
 
     def make_move(self, move):
         self.switch_colour(self.current_turn)
@@ -355,7 +351,7 @@ class PlayerVsComputer(GameScene):
         self.evaluation_component.update_thread(move)
     
 class ComputerVsComputer(GameScene):
-    def __init__(self, width, height, bitboard=None):
+    def __init__(self, width, height, bitboard:BitBoard=None):
         super().__init__(width, height, bitboard)
         self.evaluation_component = EvaluationComponent(self, auto_start=True)
     
@@ -364,14 +360,16 @@ class ComputerVsComputer(GameScene):
         if best_move and self.evaluation_component.current_thread_depth() > 0 and not(self.evaluation_component.played):
             self.make_move(best_move[-1][0] if self.current_turn[0] == BitBoard.colour.BLACK else best_move[0][0])
             self.evaluation_component.played = True
+        Scene.while_update(self)
     
     def while_event(self, event):
         match event.type:
             case pygame.VIDEORESIZE:
                 self.resize(event.h, event.w)
+        Scene.while_event(self, event)
     
     def draw(self, window):
-        return super().draw(window)
+        return GameScene.draw(self, window)
     
     def make_move(self, move):
         self.switch_colour(self.current_turn)
@@ -396,7 +394,7 @@ class EvaluationBar(GameObserver, Scene):
         if evaluation:
             number_eval = evaluation[0][1]
             advantage_scale = 0.5 - (number_eval / 10000) 
-            pygame.draw.rect(window, (0,0,0), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y * advantage_scale))
+            pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y + self.dimensions.y * advantage_scale, self.dimensions.x, self.dimensions.y))
             
             text = self.TEXT_FONT.render(str(round(advantage_scale * 10, 1)), True, (255,255,255))
             text_rect = text.get_rect()

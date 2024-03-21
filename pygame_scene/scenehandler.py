@@ -1,5 +1,7 @@
 import pygame, sys
 sys.path.append("../A-Level-Chess-Algorithm")
+from pygame_scene.scenes.scene import Button, TextBox
+from pygame_scene.scenes.database_scene import MenuScene
 from pygame_scene.scenes.game_scene import Scene, PlayerVsPlayer, ComputerVsComputer, PlayerVsComputer, EvaluationBar, Vector, SceneObserver
 
 class PyGameWindow:
@@ -71,14 +73,22 @@ class SceneHandler(PyGameWindow, SceneObserver):
     def while_event(self, event) -> object:
         for scene in self.__scenes:
             scene.while_event(event)
+        for overlay in self.__overlay_scene:
+            overlay.while_event(event)
         return self
     
-    def resize_signal(self, parent):
+    def resize_signal(self, _):
         self.__update_local_points()
-        
+    
+    def replace_signal(self, current, replacement):
+        if current: self.__scenes.remove(current)
+        self.__scenes.append(replacement)       
+    
     def while_update(self):
         for scene in self.__scenes:
             scene.while_update()
+        for overlay in self.__overlay_scene:
+            overlay.while_update()
         return self
     
     def run(self) -> None:
@@ -92,13 +102,17 @@ class SceneHandler(PyGameWindow, SceneObserver):
                     self._window_size = Vector(event.w, event.h)
                     self.__update_local_points()
                 self.while_event(event)
+            self.window.fill((0,0,0))
             for scene in self.__scenes: scene.draw(self.window)
+            for overlay in self.__overlay_scene: overlay.draw(self.window)
             pygame.display.flip()
         pygame.quit()
 
 if __name__ == "__main__":
     pygame.init()
     window = SceneHandler((850,800), "test")
-    game_scene = ComputerVsComputer(800, 800)
-    window.add_scene(game_scene).add_scene(EvaluationBar(game_scene, 50))
+    """game_scene = PlayerVsPlayer(800, 800)"""
+    """button = TextBox(100, 100, 100)"""
+    menu = MenuScene(850, 800)
+    window.add_scene(menu)
     window.run()
