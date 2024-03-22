@@ -2,6 +2,7 @@ import pygame, sys
 sys.path.append("../A-Level-Chess-Algorithm")
 from pygame_scene.scenehandler import SceneHandler, ComputerVsComputer, PlayerVsPlayer, PlayerVsComputer, EvaluationBar, PyGameWindow
 from pygame_scene.scenes.scene import Scene, SceneObserver
+from pygame_scene.scenes.game_scene import GameScene, GameObserver
 from my_dataclass import Vector
 
 """
@@ -91,6 +92,19 @@ def test_add_scene():
 """
 GameScene & GameObserver Tests
 """
+
+def test_game_scene_init():
+    game_scene = GameScene(800, 800)
+    assert game_scene
+
+def test_game_scene_resize():
+    game_scene = GameScene(800, 800)
+    game_scene.resize(600,700)
+    extract_xy = lambda vector : (vector.x, vector.y)
+    assert extract_xy(game_scene.dimensions) == (600, 600)
+
+def test_game_scene():
+    pass
 
 """
 PlayerComponent Tests

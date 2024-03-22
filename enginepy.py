@@ -219,8 +219,8 @@ class Engine:
         (w_positional, d_positional) = self.__positional_advantage(game_phase)
         (w_material, d_material) = self.__material_advantage(game_phase)
         
-        w_advantage = sum(w_strategical) + w_positional + w_material
-        d_advantage = sum(d_strategical) + d_positional + d_material
+        w_advantage = w_positional + w_material + sum(w_strategical)
+        d_advantage = d_positional + d_material + sum(d_strategical)
         return w_advantage, d_advantage
 
     def min_max_dict(self,
@@ -532,3 +532,7 @@ if __name__ == "__main__":
     
     """with open("test_evaluation.json", "w") as test_file:
         test_file.write(json.dumps(formatted))"""
+        
+"""
+Note: Attach alternative Best frist search from github branch after developemtn for 2 types of engine choice, probably one very dumb one less dumb
+"""

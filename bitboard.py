@@ -1,5 +1,6 @@
 from math import log2
 from enum import Enum
+import json
     
 class IPiece():
     colour = Enum("colour", ["BLACK", "WHITE"])
@@ -302,6 +303,32 @@ class BitBoard(IPiece):
             result += " ".join(board[((row+1)*8)-1:(row*8)-1 if (row*8)-1 > 0 else None:-1]) + " " + str(row) + "\n"
         result += " ".join("ABCDEFGH") + "\n"
         return result
+    @staticmethod
+    def __convert_from_save_move(con_move:int|tuple) -> tuple:
+        with open("save_move_mapping.json", "r") as move_mapping:
+            move_mapping = json.loads(move_mapping.read())
+        promote_key = None
+        if type(con_move) is tuple:
+            con_move, promote_key = con_move
+        con_move = move_mapping[str(con_move)]
+        (colour, piece), from_index, to_index = con_move
+        
+        colour = IPiece.colour(colour)
+        piece = IPiece.piece(piece)
+        return ((colour, piece), from_index, (to_index, promote_key) if promote_key else to_index)
+    
+    @staticmethod
+    def convert_from_save_game(con_moves:list[int|tuple]) -> list[tuple]:
+        return [BitBoard.__convert_from_save_move(con_move) for con_move in con_moves]
+    
+    @staticmethod
+    def __convert_to_save_move(move:tuple):
+        (colour, piece), promote_key, _, _, _, from_index, to_index = BitBoard._extract_move(move)
+        move = (colour.value-1)*6*64*64 + (piece.value-1)*64*64 + from_index*64 + to_index
+        return (move, promote_key) if promote_key else move
+
+    def convert_to_save_game(move_list:list[tuple]):
+        return [BitBoard.__convert_to_save_move(move) for move in move_list]
       
     def edit_board(self, move:tuple) -> object:
         """
@@ -534,6 +561,8 @@ class BitBoard(IPiece):
                 return key
         return None
     
+
+        
     @property
     def board_formatted(self) -> str:
         """

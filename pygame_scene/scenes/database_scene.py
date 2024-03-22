@@ -1,4 +1,4 @@
-import sys, mysql.connector, pygame, time
+import sys, mysql.connector, pygame, time, bcrypt
 from mysql.connector.cursor import CursorBase
 from mysql.connector.connection import MySQLConnection
 sys.path.append("../A-Level-Chess-Algorithm")
@@ -143,6 +143,9 @@ class AuthenticationComponenet():
         if userid := self.database_component.load(load_parameter):
             return userid[0][0]
         return None
+    
+    def hash_password(password:str):
+        pass
 
 class DatabaseComponent():
     def __init__(self) -> None:
@@ -238,6 +241,8 @@ password: testpassword
 
 """
 Planning, menu scene will have a few text inputs for the user ot input authentication details - requires textbox and button setup
-then verified according to database - practically done just need to link to the menu scene itself
-scene is loaded with game information around the edge of the screen where a gamescene will be contained within need to create view and collect user information
+-> need to slow hash using bcryt with slating to store passwords and potentially link account to email verifictition secondary
+Need to create representation of past games via list of move that can be replayed to reproduce or continue a previous game, when closed saves game state
+Save game feature
+Create menu button for each game scene
 """

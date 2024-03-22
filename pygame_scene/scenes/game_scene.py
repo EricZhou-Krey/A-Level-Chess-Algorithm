@@ -108,7 +108,7 @@ class GameScene(Scene):
 
     def make_move(self, move:tuple=None):
         self.update_board(move)
-            
+    
 class GameObserver(SceneObserver):
     def __init__(self, game_scene : Scene):
         super().__init__(game_scene)
@@ -406,6 +406,7 @@ Notes:
 - Temporary console promotion promoted for pawns, should add UI element for prompt
 
 - Check handling for move evaluation summons 3 knights when checking - not reliable reproducable
-- The engine is utter trash and very, very slow
+- The engine is utter trash and very, very slow (the engine evlauation function may be bugged)
 - Checkmate and stalemate un handled so creates infinite threads when playing agianst a computer - temp fix stopping scene when game ends
+- PvC not handling legal moves when king is in check
 """
