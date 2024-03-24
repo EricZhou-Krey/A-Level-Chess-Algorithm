@@ -109,6 +109,7 @@ class GameScene(Scene):
     def make_move(self, move:tuple=None):
         self.update_board(move)
     
+    
 class GameObserver(SceneObserver):
     def __init__(self, game_scene : Scene):
         super().__init__(game_scene)

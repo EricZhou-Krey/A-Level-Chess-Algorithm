@@ -1,4 +1,4 @@
-import sys, mysql.connector, pygame, time, bcrypt
+import sys, mysql.connector, pygame, time, bcrypt, re
 from mysql.connector.cursor import CursorBase
 from mysql.connector.connection import MySQLConnection
 sys.path.append("../A-Level-Chess-Algorithm")
@@ -26,18 +26,26 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
         self.__button : list[Button] = []
         self.user_information = {}
         self.user_fetch = {}
+        self.button_match = {}
         
         self.load_main_menu()
         
     def load_main_menu(self):
         if self.database_component.connection:
+            confirm_button = Button(50,50)
             self.add_overlay(TextBox(400, 50, 50), Vector(0, 50))
             self.add_overlay(TextBox(400, 50, 50), Vector(0, 150))
-            self.confirm_button = Button(50,50)
-            self.add_overlay(self.confirm_button, Vector(0, 250))
-        self.button_match = {
-            self.confirm_button : "Confirm"
-        }
+            self.add_overlay(confirm_button, Vector(0, 250))
+            self.button_match[confirm_button] = "LoginConfirm"
+            
+            confirm_button = Button(50, 50)
+            self.add_overlay(TextBox(400, 50, 50), Vector(450, 50))
+            self.add_overlay(TextBox(400, 50, 50), Vector(450, 150))
+            self.add_overlay(TextBox(400, 50, 50), Vector(450, 250))
+            self.add_overlay(confirm_button, Vector(450, 350))
+            self.button_match[confirm_button] = "SignUpConfirm"
+        else:
+            self.add_overlay(TextBox(400, 50, 50, text="Database connection not secured"), Vector(200, 200))
         self.load_game_options()
     
     def add_overlay(self, overlay : Scene, local_point: Vector) -> object:
@@ -73,13 +81,15 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
             case Button():
                 inst_game_scene = None
                 match self.button_match[button]:
-                    case "Confirm":
+                    case "LoginConfirm":
                         if user_id := self.authentication():
                             self.reset_overlay()
                             self.load_user_information(user_id)
                             self.load_game_options()
                         else:
                             self.failed_authentication()
+                    case "SignUpConfirm":
+                        self.signup()
                     case "PvP":
                         inst_game_scene = PlayerVsPlayer(self.dimensions.x-50, self.dimensions.y)
                     case "PvC":
@@ -94,6 +104,22 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
                     
     def failed_authentication(self):
         print("auth failed")
+        
+    email_regex = re.compile('[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}')
+    def signup(self):
+        username = self.__text_box[2].text
+        password = self.__text_box[3].text
+        email = self.__text_box[4].text
+        if not(username or password or email): return
+        if not(MenuScene.email_regex.match(email)):
+            self.__text_box[4].text = "invalid email"
+            return
+        hashed_password, salt = self.authentication_component.hash_password(password)
+        print(hashed_password, "\n", salt)
+        upload_sql = f'INSERT INTO UserInformation(Username, Password, Salt, Email, EloRating) VALUES("{username}", "{hashed_password.decode("utf-8")}", "{salt.decode("utf-8")}", "{email}", 100)'
+        self.database_component.cursor.execute(upload_sql)
+        self.database_component.connection.commit()
+        self.__text_box[2].text = self.__text_box[3].text = self.__text_box[4].text = ""
     
     def authentication(self):
         username = self.__text_box[0].text
@@ -111,7 +137,11 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
         self.user_fetch["column"] = "GameID, GameName, GameInformation, EngineID"
         if query_value := self.database_component.load(self.user_fetch):
             self.user_information.update({game_name: (game_id, game_info, engine_id) for (game_id, game_name, game_info, engine_id) in query_value}) #loading IDS temp, will load elo and description instead later
-            
+
+    def deleted_signal(self, scene):
+        pass #load game injformation form scne enand  upload ot datbabas is applicaopatne whend endoding useing tibitbuboard
+    
+    
     def while_event(self, event):
         super().while_event(event)
     
@@ -134,18 +164,26 @@ class AuthenticationComponenet():
     def __init__(self, database_compoenet) -> None:
         self.database_component : DatabaseComponent = database_compoenet
     
-    def verify_login(self, username, password) -> int:
+    def verify_login(self, username:str, password:str) -> int:
+        
         load_parameter = {
             "table_name" : "UserInformation",
-            "column" : "UserID",
-            "condition" : f"Username = '{username}' AND Password = '{password}'"
+            "column" : "UserID, Password, Salt",
+            "condition" : f"Username = '{username}'"
         }
-        if userid := self.database_component.load(load_parameter):
-            return userid[0][0]
+        if loaded := self.database_component.load(load_parameter)[0]:
+            user_id, hashed_password, salt = loaded
+            rehash_password = bcrypt.hashpw(password.encode('ascii'), salt := salt.decode('utf-8').strip("\x00").encode('utf-8'))
+            print(rehash_password, "\n",hashed_password.decode('utf-8').strip("\x00").encode('utf-8'))
+            if rehash_password == hashed_password.decode('utf-8').strip("\x00").encode('utf-8'):
+                return user_id
         return None
     
-    def hash_password(password:str):
-        pass
+    @staticmethod
+    def hash_password(password:str) -> tuple[str, str]:
+        salt = bcrypt.gensalt(rounds=15)
+        hashed_password = bcrypt.hashpw(password.encode('ascii'), salt)
+        return hashed_password, salt
 
 class DatabaseComponent():
     def __init__(self) -> None:
@@ -207,19 +245,14 @@ class DatabaseComponent():
     """
     example load_parameter: = {
         "table_name" : -table name for search or insert-
-        "column" : -none default to every- else -column(s) that are affected with a value-
-        "values" : -none for select-
-        "condition" : -none for upload, condition for load-
+        "column" : -column(s) that are affected with a value-
+        "condition" : condition for load-
     }
     """
     def load(self, load_parameter: dict):
         select_sql = f"SELECT {load_parameter['column']} FROM {load_parameter['table_name']} WHERE {load_parameter['condition']}"
         self.cursor.execute(select_sql)
         return self.cursor.fetchall()
-    
-    def upload(self, upload_parameter : dict):
-        insert_sql = f"INSERT INTO {upload_parameter['table_name']}({str(upload_parameter['column']).strip('[]')}) VALUES({str(upload_parameter['values']).strip('[]')})"
-        self.cursor.execute(insert_sql)
     
     def __delete__(self):
         self.cursor.close()
