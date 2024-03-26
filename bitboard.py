@@ -251,6 +251,7 @@ class BitBoard(IPiece):
         }
         move_function, args = piece_movement_bitboard[piece_name]
         return move_function(*args)
+    
     @staticmethod
     def _extract_move(move:tuple) -> tuple[str, str, int, int, int, int, int]:
         """
@@ -276,6 +277,7 @@ class BitBoard(IPiece):
             origin_to_bit = origin_bit
             
         return piece, promote_key, origin_bit, to_bit, origin_to_bit, origin_index, to_index
+    
     @staticmethod
     def number_to_algebra_notation(move:tuple) -> tuple:
         
@@ -290,6 +292,7 @@ class BitBoard(IPiece):
             return piece, origin_file+origin_rank, to_file+to_rank, promote_key
         else:
             return piece, origin_file+origin_rank, to_file+to_rank  
+    
     @staticmethod
     def bitboard_formatted(bitboard:int) -> str:
         """
@@ -303,19 +306,21 @@ class BitBoard(IPiece):
             result += " ".join(board[((row+1)*8)-1:(row*8)-1 if (row*8)-1 > 0 else None:-1]) + " " + str(row) + "\n"
         result += " ".join("ABCDEFGH") + "\n"
         return result
+    
+    with open("save_move_mapping.json", "r") as move_mapping:
+        move_mapping = json.loads(move_mapping.read())
+        
     @staticmethod
-    def __convert_from_save_move(con_move:int|tuple) -> tuple:
-        with open("save_move_mapping.json", "r") as move_mapping:
-            move_mapping = json.loads(move_mapping.read())
+    def __convert_from_save_move(con_move:int|tuple) -> tuple: #untested, probably broken
         promote_key = None
         if type(con_move) is tuple:
             con_move, promote_key = con_move
-        con_move = move_mapping[str(con_move)]
-        (colour, piece), from_index, to_index = con_move
+        con_move = BitBoard.move_mapping[str(con_move)]
+        (piece, colour), from_index, to_index = con_move
         
         colour = IPiece.colour(colour)
         piece = IPiece.piece(piece)
-        return ((colour, piece), from_index, (to_index, promote_key) if promote_key else to_index)
+        return ((piece, colour), from_index, (to_index, promote_key) if promote_key else to_index)
     
     @staticmethod
     def convert_from_save_game(con_moves:list[int|tuple]) -> list[tuple]:
@@ -323,12 +328,13 @@ class BitBoard(IPiece):
     
     @staticmethod
     def __convert_to_save_move(move:tuple):
-        (colour, piece), promote_key, _, _, _, from_index, to_index = BitBoard._extract_move(move)
-        move = (colour.value-1)*6*64*64 + (piece.value-1)*64*64 + from_index*64 + to_index
+        (piece, colour), promote_key, _, _, _, from_index, to_index = BitBoard._extract_move(move)
+        move = (piece.value-1)*2*64*64 + (colour.value-1)*64*64 + from_index*64 + to_index
         return (move, promote_key) if promote_key else move
 
+    @staticmethod
     def convert_to_save_game(move_list:list[tuple]):
-        return [BitBoard.__convert_to_save_move(move) for move in move_list]
+        return [BitBoard.__convert_to_save_move(move) if len(move) == 3 else BitBoard.__convert_to_save_move(move[0]) for move in move_list]
       
     def edit_board(self, move:tuple) -> object:
         """

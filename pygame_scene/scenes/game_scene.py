@@ -280,7 +280,6 @@ class EvaluationThread(threading.Thread):
         self.engine.min_max_dict(current_colour=self.__current_colour, move_evaluation=self.__move_evaluation)
         self.parent.create_new_thread(self.engine.move_evaluation)
             
-            
 class PlayerVsPlayer(GameScene):
     def __init__(self, width, height, bitboard:BitBoard=None):
         super().__init__(width, height, bitboard)
@@ -401,6 +400,7 @@ class EvaluationBar(GameObserver, Scene):
             text_rect = text.get_rect()
             text_rect.x, text_rect.y = self.local_point.x, self.local_point.y
             window.blit(text, text_rect)
+            
 
 """
 Notes: 
@@ -410,4 +410,5 @@ Notes:
 - The engine is utter trash and very, very slow (the engine evlauation function may be bugged)
 - Checkmate and stalemate un handled so creates infinite threads when playing agianst a computer - temp fix stopping scene when game ends
 - PvC not handling legal moves when king is in check
+- On illegal pawn move to end of board: still askes for promotion
 """

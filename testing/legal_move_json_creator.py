@@ -7,8 +7,8 @@ def convert_move(move):
 def write_json_mapping():
     move_mapping = {}
     count = 0
-    for u in range(1, 3):
-        for x in range(1, 7):
+    for u in range(1, 7):
+        for x in range(1, 3):
             for y in range(64):
                 for z in range(64):
                     move_mapping[count] = ((u, x), y, z)
@@ -17,13 +17,14 @@ def write_json_mapping():
         json_mapping.write(json.dumps(move_mapping))
         
 def main():
+    write_json_mapping()
     with open("save_move_mapping.json", "r") as json_mapping:
         move_mapping = json.loads(json_mapping.read())  
     pass
     # colour, piece, from, to
     # promotion saved with string as tuple
-    # colour = (n-1)*6*64*64
-    # piece = colour + (n-1)*64*64
+    # piece = (n-1)*2*64*64
+    # colour = peice + (n-1)*64*64
     # from = colour + piece + n*64
     # to = colour + piece + from + n
     

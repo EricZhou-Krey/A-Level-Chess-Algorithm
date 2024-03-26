@@ -219,3 +219,8 @@ def test_king_safety():
 
 if __name__ == "__main__":
     pass
+
+
+"""
+add convert to save game, load save game methods
+"""

@@ -37,14 +37,9 @@ class Scene:
     def draw(self, window):
         for overlay in self._overlay_scene:
             overlay.draw(window)
-    
-    def __delete__(self):
-        print("Ended scene:", self.__class__)
-        for observer in self.observers:
-            observer.deleted_signal(self)
 
 
-class Button(Scene): # in progress
+class Button(Scene):
     def __init__(self, width, height, font_size:int=0, background_colour:tuple=(50,50,50), active_colour:tuple=(255,255,255), inactive_colour:tuple=(235,235,235), text:str=""):
         super().__init__(width, height)
         self.observers : list[ButtonObserver] = []
@@ -99,7 +94,7 @@ class ButtonObserver():
     def release_signal(self, button: Button):
         pass
     
-class TextBox(Button): # in progress
+class TextBox(Button):
     def __init__(self, width, height, font_size:int, background_colour:tuple=(50,50,50), active_colour:tuple=(255,255,255), inactive_colour:tuple=(235,235,235), text:str=""):
         super().__init__(width, height, font_size, background_colour, active_colour, inactive_colour, text=text)
         self.observers : list[TextBoxObserver] = []
@@ -162,5 +157,3 @@ class SceneObserver():
     def replace_signal(self, current, replacement):
         pass
     
-    def deleted_signal(self, scene):
-        pass
