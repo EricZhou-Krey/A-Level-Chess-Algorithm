@@ -80,7 +80,7 @@ class GameScene(Scene):
                     window.blit(self.notation_to_image[notation], (c_index * (self.dimensions.x // 8), r_index * (self.dimensions.y // 8)))
         super().draw(window)
     
-    def update_board(self, move:tuple=None, u_type=None):
+    def _update_board(self, move:tuple=None, u_type=None):
         u_type = u_type if u_type else self.update_type.APPLY
         match u_type:
             case self.update_type.APPLY:
@@ -107,7 +107,7 @@ class GameScene(Scene):
                 observer.update_board_signal(self)
 
     def make_move(self, move:tuple=None):
-        self.update_board(move)
+        self._update_board(move)
     
     
 class GameObserver(SceneObserver):
@@ -307,7 +307,7 @@ class PlayerVsPlayer(GameScene):
     
     def make_move(self, move):
         self.switch_colour(self.current_turn)
-        self.update_board(move)
+        self._update_board(move)
         self.evaluation_component.update_thread(move)
 
 class PlayerVsComputer(GameScene):
@@ -347,7 +347,7 @@ class PlayerVsComputer(GameScene):
 
     def make_move(self, move):
         self.switch_colour(self.current_turn)
-        self.update_board(move)
+        self._update_board(move)
         self.evaluation_component.update_thread(move)
     
 class ComputerVsComputer(GameScene):
@@ -373,7 +373,7 @@ class ComputerVsComputer(GameScene):
     
     def make_move(self, move):
         self.switch_colour(self.current_turn)
-        self.update_board(move)
+        self._update_board(move)
         self.evaluation_component.update_thread(move)
         
 class EvaluationBar(GameObserver, Scene):

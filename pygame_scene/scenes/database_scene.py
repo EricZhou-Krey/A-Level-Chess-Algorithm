@@ -19,34 +19,41 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
         self.observers : list[MenuObserver] = []
         self.database_component : DatabaseComponent = DatabaseComponent()
         self.authentication_component : AuthenticationComponenet = AuthenticationComponenet(self.database_component)
+        
         self.__font_size = font_size
         self.__font = pygame.font.Font(None, font_size)
         self.__font_color = pygame.Color(*inactive_colour)
         
+        self.__current_game_id = None
         self.__text_box : list[TextBox] = []
         self.__button : list[Button] = []
+        self.__display_user_information = True
         self.user_information = {}
         self.user_fetch = {}
         self.button_match = {}
         self.text_match = {}
         
         self.load_main_menu()
+    
+    def load_authentication_menu(self):
+        confirm_button = Button(50,50)
+        self.text_match = {textReference : TextBox(400, 50, 50) for textReference in ["LoginUsername", "LoginPassword", "SignUpUsername", "SignUpPassword", "SignUpEmail"]}
+        self.add_overlay(self.text_match["LoginUsername"], Vector(0, 50))
+        self.add_overlay(self.text_match["LoginPassword"], Vector(0, 150))
+        self.add_overlay(confirm_button, Vector(50, 250))
+        self.button_match[confirm_button] = "LoginConfirm"
         
+        confirm_button = Button(50, 50)
+        self.add_overlay(self.text_match["SignUpUsername"], Vector(450, 50))
+        self.add_overlay(self.text_match["SignUpPassword"], Vector(450, 150))
+        self.add_overlay(self.text_match["SignUpEmail"], Vector(450, 250))
+        self.add_overlay(confirm_button, Vector(450, 350))
+        self.button_match[confirm_button] = "SignUpConfirm"
+    
     def load_main_menu(self):
         if self.database_component.connection:
-            confirm_button = Button(50,50)
-            self.text_match = {textReference : TextBox(400, 50, 50) for textReference in ["LoginUsername", "LoginPassword", "SignUpUsername", "SignUpPassword", "SignUpEmail"]}
-            self.add_overlay(self.text_match["LoginUsername"], Vector(0, 50))
-            self.add_overlay(self.text_match["LoginPassword"], Vector(0, 150))
-            self.add_overlay(confirm_button, Vector(0, 250))
-            self.button_match[confirm_button] = "LoginConfirm"
-            
-            confirm_button = Button(50, 50)
-            self.add_overlay(self.text_match["SignUpUsername"], Vector(450, 50))
-            self.add_overlay(self.text_match["SignUpPassword"], Vector(450, 150))
-            self.add_overlay(self.text_match["SignUpEmail"], Vector(450, 250))
-            self.add_overlay(confirm_button, Vector(450, 350))
-            self.button_match[confirm_button] = "SignUpConfirm"
+            if not(self.user_information):
+                self.load_authentication_menu()
         else:
             self.add_overlay(TextBox(400, 50, 50, text="Database connection not secured"), Vector(200, 200))
         self.load_game_options()
@@ -77,24 +84,26 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
         self.button_match.clear()
         self._overlay_scene.clear()
     
+    __game_scene_notation = {PlayerVsComputer : "PvC", PlayerVsPlayer : "PvP", ComputerVsComputer : "CvC"}
+    __notation_game_scene = {value : key for key, value in __game_scene_notation.items()}
     def press_signal(self, button : Button):
         def handle_text_independance():
             for overlay in [ov for ov in self._overlay_scene if type(ov) is TextBox]:
-                    if button != overlay:
-                        overlay.active = False
-        
+                if button != overlay:
+                    overlay.active = False
         match button:
             case TextBox():
                 handle_text_independance()
             case Button():
-                inst_game_scene = None
                 match self.button_match[button]:
                     case "ExitGameScene":
                         for overlay in self._overlay_scene:
-                            if isinstance(overlay, GameScene):
-                                self.database_component.save_game(overlay.bitboard.applied_moves, "example_name", self.user_information["UserID"] if self.user_information else 1, 1)
+                            if isinstance(overlay, GameScene): # need to stop storing duplicate games
+                                self.database_component.save_game(overlay.bitboard.applied_moves, MenuScene.__game_scene_notation[type(overlay)], "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else 1, engine_id=1)
                         self.reset_overlay()
                         self.load_main_menu()
+                        if self.user_information and (user_id := self.user_information["UserID"]): self.load_user_information(user_id)
+                        self.__display_user_information = True
                     case "LoginConfirm":
                         if user_id := self.authentication():
                             self.reset_overlay()
@@ -105,20 +114,26 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
                     case "SignUpConfirm":
                         self.signup()
                     case "PvP":
-                        inst_game_scene = PlayerVsPlayer(self.dimensions.x-50, self.dimensions.y)
+                        self.load_game(PlayerVsPlayer(self.dimensions.x-50, self.dimensions.y))
                     case "PvC":
-                        inst_game_scene = PlayerVsComputer(self.dimensions.x-50, self.dimensions.y)
+                        self.load_game(PlayerVsComputer(self.dimensions.x-50, self.dimensions.y))
                     case "CvC":
-                        inst_game_scene = ComputerVsComputer(self.dimensions.x-50, self.dimensions.y)
-                        
-                if inst_game_scene:
-                    self.reset_overlay()
-                    self.button_match[button := Button(25, 25, 50, text="X")] = "ExitGameScene"
-                    self.add_overlay(inst_game_scene, self.local_point)
-                    self.add_overlay(EvaluationBar(inst_game_scene, 50), Vector(self.local_point.x+self.dimensions.x-50, 0))
-                    self.add_overlay(button, Vector(0,0))
-                    
-                    
+                        self.load_game(ComputerVsComputer(self.dimensions.x-50, self.dimensions.y))
+                    case int():
+                        _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
+                        apply_move = BitBoard.convert_from_save_game(game_move)
+                        game_scene = MenuScene.__notation_game_scene[game_type](self.dimensions.x-50, self.dimensions.y)
+                        for move in apply_move: game_scene.make_move(move)
+                        self.load_game(game_scene)
+    
+    def load_game(self, game_scene : GameScene):
+        self.reset_overlay()
+        self.button_match[button := Button(25, 25, 50, text="X")] = "ExitGameScene"
+        self.add_overlay(game_scene, self.local_point)
+        self.add_overlay(EvaluationBar(game_scene, 50), Vector(self.local_point.x+self.dimensions.x-50, self.local_point.y))
+        self.add_overlay(button, Vector(self.local_point.x+self.dimensions.x-25, self.local_point.y+self.dimensions.y-25))
+        self.__display_user_information = False
+    
     def failed_authentication(self):
         print("auth failed")
         
@@ -148,33 +163,66 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
         if user_id < 0:
             self.load_local_save_game()
             return
-        self.user_fetch["table_name"] = "UserInformation"
-        self.user_fetch["column"] = "UserID, Username, EloRating"
-        self.user_fetch["condition"] = f"UserID = {user_id}"
-        if query_value := self.database_component.load(self.user_fetch):
-            self.user_information = dict(zip(["UserID", "Username", "EloRating"], query_value[0]))
-        
+        if not(self.user_information):
+            self.user_fetch["table_name"] = "UserInformation"
+            self.user_fetch["column"] = "UserID, Username, EloRating"
+            self.user_fetch["condition"] = f"UserID = {user_id}"
+            if query_value := self.database_component.load(self.user_fetch):
+                self.user_information = dict(zip(["UserID", "Username", "EloRating"], query_value[0])) # only loads staring information once
+            
         self.user_fetch["table_name"] = "Game"
-        self.user_fetch["column"] = "GameID, GameName, GameInformation, EngineID"
+        self.user_fetch["column"] = "GameID, GameName, GameInformation, EngineID, GameType"
+        self.user_information["SaveGame"] = {}
         if query_value := self.database_component.load(self.user_fetch):
-            self.user_information.update({game_name: (game_id, json.loads(game_info), engine_id) for (game_id, game_name, game_info, engine_id) in query_value}) #loading IDS temp, will load elo and description instead later
+            self.user_information["SaveGame"].update({game_id: (game_name, json.loads(game_info), engine_id, game_type) \
+                for (game_id, game_name, game_info, engine_id, game_type) in query_value})
+        self.load_continue_button()
     
     def load_local_save_game(self):
-        with open("local_save.json", "w") as save_file:
-            local_save = json.loads(save_file.read())
-        self.user_information = dict(zip(["UserID", "Username", "EloRating"], [local_save["UserID"], local_save["Username"], local_save["EloRating"]]))
-        for game in local_save["SaveGame"]:
-            self.user_information[game["name"]] = (game["gameinfo"], game["engine_id"])
+        try:
+            with open("local_save.json", "r") as save_file:
+                local_save = json.loads(save_file.read())
+        except Exception as e:
+            print(e)
+            local_save = {
+                "UserID" : -1,
+                "Username" : "Local",
+                "EloRating" : 100,
+                "SaveGame" : {}
+            }
+            with open("local_save.json", "w") as save_file:
+                save_file.write(json.dumps(local_save, indent=4))
+        if not(self.user_information):
+            self.user_information = dict(zip(["UserID", "Username", "EloRating"], [local_save["UserID"], local_save["Username"], local_save["EloRating"]]))
+        self.user_information["SaveGame"] = {}
+        for game_id, game in local_save["SaveGame"].items():
+            self.user_information["SaveGame"][int(game_id)] = (game["name"], game["gameinfo"], game["engine_id"], game["game_type"])
+        self.load_continue_button()
     
+    def load_continue_button(self):
+        for (y, game) in enumerate(self.user_information["SaveGame"]):
+            self.button_match[button := Button(50, 50, 20, text=self.user_information["SaveGame"][game][0])] = game
+            self.add_overlay(button, Vector(0, y*70))
+            
     def while_event(self, event):
         super().while_event(event)
     
     def draw(self, window):
-        if self.user_information:
+        def display_at(ind, text):
+            text_surface = self.__font.render(text, False, self.__font_color)
+            window.blit(text_surface, (self.local_point.x+100, self.local_point.y+(self.__font_size*ind)))
+        
+        save_ind = 0
+        if self.user_information and self.__display_user_information:
             for ind, (key, value) in enumerate(self.user_information.items()):
+                if key == "SaveGame":
+                    for save_ind, (key, value) in enumerate(value.items()):
+                        value = list(value)
+                        value[1] = BitBoard.convert_to_notation_game(BitBoard.convert_from_save_game(value[1]))
+                        text = f"{key}: {value}"
+                        display_at(ind+save_ind, text)
                 text = f"{key}: {value}"
-                text_surface = self.__font.render(text, False, self.__font_color)
-                window.blit(text_surface, (self.local_point.x+100, self.local_point.y+(self.__font_size*ind))) # temp number for sizes of UI
+                display_at(ind+save_ind, text) # temp number for sizes of UI
         super().draw(window)
 
 class MenuObserver(SceneObserver):
@@ -261,43 +309,50 @@ class DatabaseComponent():
         self.cursor.execute(select_sql)
         return self.cursor.fetchall()
     
-    __game_sql = f"INSERT INTO Game(GameName, UserID, EngineID, DateTime, GameInformation) VALUES(%(name)s, %(user_id)s, %(engine_id)s, %(datetime)s, %(gameinfo)s)"
-    def save_game(self, applied_moves:list[tuple], name:str, user_id:int, engine_id:int=1): #local userID is always -1
-        if not(applied_moves): return
-        save_game = BitBoard.convert_to_save_game(applied_moves)
+    def save_local(self, save_game:list[int], game_type:str, name:str, game_id:int, user_id:int, engine_id:int):
         try:
             with open("local_save.json", "r") as save_file:
                 local_save = json.loads(save_file.read())
-                local_save["SaveGame"].append({
-                    "name" : name,
-                    "user_id" : user_id,
-                    "engine_id" : engine_id,
-                    "date_time" : time.strftime('%Y-%m-%d %H:%M:%S'),
-                    "gameinfo" : save_game
-                })
+            game_id = max([int(g_id)+1 for g_id in local_save["SaveGame"].keys()]) if not(game_id) else game_id # error in list comp
+            local_save["SaveGame"][game_id] = {
+                "name" : name,
+                "user_id" : user_id,
+                "engine_id" : engine_id,
+                "date_time" : time.strftime('%Y-%m-%d %H:%M:%S'),
+                "gameinfo" : save_game,
+                "game_type" : game_type
+            }
         except Exception as e:
             print(e)
             local_save = {
                 "UserID" : -1,
                 "Username" : "Local",
                 "EloRating" : 100,
-                "SaveGame" : [{
+                "SaveGame" : { 1 : {
                     "name" : name,
                     "user_id" : user_id,
                     "engine_id" : engine_id,
                     "date_time" : time.strftime('%Y-%m-%d %H:%M:%S'),
-                    "gameinfo" : save_game
-                }]
+                    "gameinfo" : save_game,
+                    "game_type" : game_type
+                }}
             }
         with open("local_save.json", "w") as save_file:
-            save_file.write(json.dumps(local_save))
-            
+            save_file.write(json.dumps(local_save, indent=4))
+    
+    __game_sql = f"INSERT INTO Game(GameName, UserID, EngineID, DateTime, GameInformation, GameType) VALUES(%(name)s, %(user_id)s, %(engine_id)s, %(datetime)s, %(gameinfo)s, %(game_type)s)"
+    def save_game(self, applied_moves:list[tuple], game_type:str, name:str, game_id:int=None, user_id:int=-1, engine_id:int=1): #local userID is always -1 and default engine id is 1
+        if not(applied_moves): return
+        save_game = BitBoard.convert_to_save_game(applied_moves)
+        self.save_local(save_game, game_type, name, game_id, user_id, engine_id)
+        if user_id < 0: return
         values = {
-            "name" : name, 
-            "user_id" : user_id, 
+            "name" : name,
+            "user_id" : user_id,
             "engine_id" : engine_id,
             "datetime" : time.strftime('%Y-%m-%d %H:%M:%S'),
-            "gameinfo" : json.dumps(save_game)
+            "gameinfo" : json.dumps(save_game, indent=4),
+            "game_type" : game_type
             }
         self.cursor.execute(DatabaseComponent.__game_sql, values)
         self.connection.commit()
@@ -309,31 +364,13 @@ if __name__ == "__main__":
     main()
 
 """
-Planning, menu scene will have a few text inputs for the user ot input authentication details - requires textbox and button setup
--> need to slow hash using bcryt with slating to store passwords and potentially link account to email verifictition secondary
-Need to create representation of past games via list of move that can be replayed to reproduce or continue a previous game, when closed saves game state
 Save game feature
 Create menu button for each game scene
+-> menu button collisions, temporary solution of moving buttons
+-> game saving again to a different record when saving
+
+Need to update sql and json file formatting to algin with each other, with the fucntions load save games, save_games etc
+
+
 Unhandled thread when closing game scene
 """
-
-"""   
-    def update_user_information(self): #marker
-        if not(self.user_information): return
-        
-        CREATE VIEW view_name AS
-        SELECT column1, column2, ...
-        FROM table_name
-        WHERE condition;
-        
-        FROM Orders
-        INNER JOIN Customers ON Orders.CustomerID=Customers.CustomerID;
-        
-        
-        user_with_id_view = f"CREATE VIEW {self.user_information['UserID']}_user_view AS SELECT Username, EloRating, GameID, \
-            GameName, GameInformation, EngineID FROM UserInformation INNER JOIN Game ON UserInformation.UserID=Game.UserID"
-        self.cursor.execute(user_with_id_view)
-        
-        self.user_information["UserView"] = f"{self.user_information['UserID']}_user_view"
-        self.config["tables"][self.user_information["UserView"]]
-    """

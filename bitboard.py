@@ -278,9 +278,9 @@ class BitBoard(IPiece):
             
         return piece, promote_key, origin_bit, to_bit, origin_to_bit, origin_index, to_index
     
+    __piece_to_char = dict(zip([p for p in IPiece.piece], ["r", "b", "n", "q", "k", "p"]))
     @staticmethod
     def number_to_algebra_notation(move:tuple) -> tuple:
-        
         piece, promote_key, _, _, _, origin, to = BitBoard._extract_move(move)
         
         files = "ABCDEFGH"
@@ -288,10 +288,9 @@ class BitBoard(IPiece):
         origin_file = str(files[origin%8])
         to_rank = str((to//8) + 1)
         to_file = str(files[to%8])
-        if promote_key:
-            return piece, origin_file+origin_rank, to_file+to_rank, promote_key
-        else:
-            return piece, origin_file+origin_rank, to_file+to_rank  
+        piece, colour = piece
+        notation = BitBoard.__piece_to_char[piece].capitalize() if colour.value == 1 else BitBoard.__piece_to_char[piece]
+        return notation+origin_file+origin_rank+to_file+to_rank+promote_key if promote_key else notation+origin_file+origin_rank+to_file+to_rank 
     
     @staticmethod
     def bitboard_formatted(bitboard:int) -> str:
@@ -335,7 +334,12 @@ class BitBoard(IPiece):
     @staticmethod
     def convert_to_save_game(move_list:list[tuple]):
         return [BitBoard.__convert_to_save_move(move) if len(move) == 3 else BitBoard.__convert_to_save_move(move[0]) for move in move_list]
-      
+    
+    @staticmethod
+    def convert_to_notation_game(move_list:list[tuple]):
+        return [BitBoard.number_to_algebra_notation(move) for move in move_list]
+    
+    
     def edit_board(self, move:tuple) -> object:
         """
         Promote piece board is updated if promotion is assigned
