@@ -366,11 +366,9 @@ if __name__ == "__main__":
 """
 Save game feature
 Create menu button for each game scene
--> menu button collisions, temporary solution of moving buttons
--> game saving again to a different record when saving
+-> menu button collisions, reason unknown, temporary solution of moving buttons
 
 Need to update sql and json file formatting to algin with each other, with the fucntions load save games, save_games etc
-
 
 Unhandled thread when closing game scene
 """

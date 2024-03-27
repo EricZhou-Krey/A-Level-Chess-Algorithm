@@ -1,0 +1,44 @@
+{
+    "UserID": -1,
+    "Username": "Local",
+    "EloRating": 100,
+    "SaveGame": {
+        "1": {
+            "name": "name",
+            "user_id": -1,
+            "engine_id": 1,
+            "date_time": "2024-03-27 15:06:06",
+            "gameinfo": [
+                45852,
+                44259,
+                46884,
+                44389,
+                47405,
+                44333,
+                45787,
+                43877
+            ],
+            "game_type": "PvP"
+        },
+        "2": {
+            "name": "name",
+            "user_id": 1,
+            "engine_id": 1,
+            "date_time": "2024-03-27 15:20:00",
+            "gameinfo": [
+                44259
+            ],
+            "game_type": "PvP"
+        },
+        "3": {
+            "name": "name",
+            "user_id": 1,
+            "engine_id": 1,
+            "date_time": "2024-03-27 15:21:07",
+            "gameinfo": [
+                45787
+            ],
+            "game_type": "PvP"
+        }
+    }
+}

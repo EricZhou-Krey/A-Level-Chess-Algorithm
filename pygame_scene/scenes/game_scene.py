@@ -8,7 +8,6 @@ from enginepy import Engine
             
 class GameScene(Scene):
     turn = Enum("turn", ["PLAYER", "COMPUTER"])
-    update_type = Enum("update_type", ["EDIT", "APPLY", "REVERT"])
     def __init__(self, width, height, bitboard=None):
         super().__init__(width, height)
         self.observers : list[GameObserver] = []
@@ -80,16 +79,17 @@ class GameScene(Scene):
                     window.blit(self.notation_to_image[notation], (c_index * (self.dimensions.x // 8), r_index * (self.dimensions.y // 8)))
         super().draw(window)
     
+    _update_type = Enum("update_type", ["EDIT", "APPLY", "REVERT"])
     def _update_board(self, move:tuple=None, u_type=None):
-        u_type = u_type if u_type else self.update_type.APPLY
+        u_type = u_type if u_type else GameScene._update_type.APPLY
         match u_type:
-            case self.update_type.APPLY:
+            case self._update_type.APPLY:
                 self.bitboard.apply_move(move)
                 
-            case self.update_type.EDIT:
+            case self._update_type.EDIT:
                 self.bitboard.edit_board(move)
     
-            case self.update_type.REVERT:
+            case self._update_type.REVERT:
                 self.bitboard.revert_move()
                 
         self._legal_moves = self._player_legal_move(self.bitboard)
@@ -229,7 +229,7 @@ class PlayerComponent():
                     
         if selected_notation and selected_piece_drag_position:
             window.blit(self.parent.notation_to_image[selected_notation], selected_piece_drag_position)
-
+        
 class EvaluationComponent():
     def __init__(self, parent : GameScene, auto_start:bool=False) -> None:
         self.bitboard = parent.bitboard
@@ -297,6 +297,10 @@ class PlayerVsPlayer(GameScene):
                 self.player_componenet.release_event(event, self._legal_moves)
             case pygame.MOUSEMOTION:
                 self.player_componenet.mouse_motion_event(event)
+            case pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    self.switch_colour(self.current_turn)
+                    self._update_board(u_type=GameScene._update_type["REVERT"])
         Scene.while_event(self, event)
                 
     def draw(self, window):
