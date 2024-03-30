@@ -80,6 +80,9 @@ class SceneHandler(PyGameWindow, SceneObserver):
         self.__update_local_points()
     
     def replace_signal(self, current, replacement):
+        """
+        Accepts replacement call from child scenes are replaces a scene with another
+        """
         if current: self.__scenes.remove(current)
         self.__scenes.append(replacement)       
     

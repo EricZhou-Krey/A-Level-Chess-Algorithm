@@ -45,7 +45,7 @@ class GameScene(Scene):
         self._updated_display_board = lambda self : [row[:15].split(" ") for row in self.bitboard.board_formatted[:141].split("\n")[:9]]
         self.notation_board = self._updated_display_board(self)
         
-        self.current_turn = [BitBoard.colour.WHITE]
+        self.current_turn = [BitBoard.colour.WHITE] # Using Python's list mutablity for turn tracking
         """
         GUI colours for different features of the scene will be moved to json file later
         """
@@ -59,15 +59,19 @@ class GameScene(Scene):
     
     @staticmethod
     def switch_colour(current_turn:list) -> None:
-        current_turn[0] = current_turn[0] = BitBoard.colour.BLACK if current_turn[0] == BitBoard.colour.WHITE else BitBoard.colour.WHITE
+        current_turn[0] = BitBoard.colour.BLACK if current_turn[0] == BitBoard.colour.WHITE else BitBoard.colour.WHITE
         
-    def resize(self, height, width):
+    def resize(self, height, width) -> object:
+        """
+        Automatically resizes game scene itself is loaded into a scene handler to fill the entire scene square based
+        """
         self.dimensions.x = self.dimensions.y = min(height, width)
         for key, image in self.notation_to_image.items(): self.notation_to_image[key] = self._updated_display_image(self, image)
         for observer in self.observers:
             observer.resize_signal(self)
+        return self
     
-    def draw(self, window):
+    def draw(self, window) -> object:
         tilesize = self.dimensions // 8
         for r_index, row in enumerate(self.notation_board):
             for c_index, notation in enumerate(row):
@@ -77,7 +81,7 @@ class GameScene(Scene):
                 else: pygame.draw.rect(window, self._object_colour["DARK"], tile_rect)
                 if notation != ".":
                     window.blit(self.notation_to_image[notation], (c_index * (self.dimensions.x // 8), r_index * (self.dimensions.y // 8)))
-        super().draw(window)
+        return super().draw(window)
     
     _update_type = Enum("update_type", ["EDIT", "APPLY", "REVERT"])
     def _update_board(self, move:tuple=None, u_type=None):
