@@ -408,11 +408,23 @@ class EvaluationBar(GameObserver, Scene):
 
 """
 Notes: 
-- Temporary console promotion promoted for pawns, should add UI element for prompt
+- Temporary console promotion promoted for pawns, should add UI element for prompt -> Removed but cant promote
 
-- Check handling for move evaluation summons 3 knights when checking - not reliable reproducable
 - The engine is utter trash and very, very slow (the engine evlauation function may be bugged)
-- Checkmate and stalemate un handled so creates infinite threads when playing agianst a computer - temp fix stopping scene when game ends
-- PvC not handling legal moves when king is in check
+- Checkmate and stalemate unhandled so creates infinite threads when playing agianst a computer - temp fix stopping scene when game ends
+    -> Check handling for move evaluation summons 3 knights when checking - not reliable reproducable
+
+- legal moves are bugged
+    -> rook can jump peice on board [rA7E7]
+    R . . . K B . R 0
+    P P . N Q . . P 1
+    . . . P . N . . 2
+    . . P p . B P . 3
+    . . . . . . . . 4
+    . . n . . n . . 5
+    p p p . b p p p 6
+    r . . q . r k . 7
+    A B C D E F G H 
+
 - On illegal pawn move to end of board: still askes for promotion
 """

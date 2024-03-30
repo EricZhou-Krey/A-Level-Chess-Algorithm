@@ -243,7 +243,8 @@ class AuthenticationComponenet():
             "column" : "UserID, Password, Salt",
             "condition" : f"Username = '{username}'"
         }
-        if loaded := self.database_component.load(load_parameter)[0]:
+        if loaded := self.database_component.load(load_parameter):
+            loaded = loaded[0]
             user_id, hashed_password, salt = loaded
             rehash_password = bcrypt.hashpw(password.encode('ascii'), salt := salt.decode('utf-8').strip("\x00").encode('utf-8'))
             if rehash_password == hashed_password.decode('utf-8').strip("\x00").encode('utf-8'):
@@ -293,13 +294,13 @@ class DatabaseComponent():
     @property
     def config(self):
         return self.__config
-    """
-    example load_parameter: = {
+    
+    """ example load_parameter: = {
         "table_name" : -table name for search or insert-
         "column" : -column(s) that are affected with a value-
         "condition" : condition for load-
-    }
-    """
+    }"""
+    
     def upload(self, sql:str):
         self.cursor.execute(sql)
         self.connection.commit()
@@ -369,6 +370,7 @@ Create menu button for each game scene
 -> menu button collisions, reason unknown, temporary solution of moving buttons
 
 Need to update sql and json file formatting to algin with each other, with the fucntions load save games, save_games etc
+Save to sql database duplicates itself
 
 Unhandled thread when closing game scene
 """
