@@ -375,9 +375,6 @@ if __name__ == "__main__":
 
 """
 For further development problems:
-Create menu button for each game scene
--> menu button collisions, reason unknown, temporary solution of moving buttons
-
-Problems:
-Unhandled thread when closing game scene
+    -> menu button collisions, reason unknown, temporary solution of moving buttons
+    -> Unhandled thread when closing game scene
 """

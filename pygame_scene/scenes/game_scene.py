@@ -418,9 +418,6 @@ class EvaluationBar(GameObserver, Scene):
 Notes: 
 - Promotion and UI is overall very janky
 
-- The engine is utter trash and very, very slow (the engine evlauation function may be bugged)
-- Checkmate and stalemate unhandled so creates infinite threads when playing agianst a computer
-    -> Check handling for move evaluation summons 3 knights when checking - not reliable reproducable
-
+- The engine is utter trash and very, very slow (the engine evlauation function may be bugged
 Further development, create a seperate thread for drawing, events and updates depending on the type of action to decouple checks
 """

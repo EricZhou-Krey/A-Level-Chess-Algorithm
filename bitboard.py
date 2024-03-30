@@ -234,7 +234,7 @@ class BitBoard(IPiece):
         return self.__bitboard_dict
     
     def _get_move(self, piece:tuple, opposing:int=0, similar:int=0, singular_piece_index:int=-1) -> int:
-        if singular_piece_index > 0:
+        if singular_piece_index >= 0:
             piece_bitboard = 2**singular_piece_index
         else:
             piece_bitboard = self.__bitboard_dict[piece]
@@ -571,8 +571,7 @@ class BitBoard(IPiece):
                 return key
         return None
     
-
-        
+    
     @property
     def board_formatted(self) -> str:
         """
@@ -702,6 +701,8 @@ class BitBoard(IPiece):
                             taking = to_index in move_dictionary.keys()
                             if not(en_passant or taking):
                                 legal = False
+                        else:
+                            legal = False
                     else:
                         legal = False
                         
@@ -769,24 +770,4 @@ class BitBoard(IPiece):
         return pw_board, pd_board
     
 if __name__ == "__main__":
-    board = "rnbqkbnrpppppppp...............................qPPPPPPPPRNBQKBNR"
-    bitBoard = BitBoard(board).apply_move(((BitBoard.piece.QUEEN, BitBoard.colour.WHITE), 47, 55))
     pass
-    legal = bitBoard.legal_move_dict
-    pass
-
-"""
-Rook can move through pieces after a castle for some reason
-- legal moves are bugged
-    -> En passant works on white pawns that have just move to the backrank of the oppoenent
-    -> rook can jump peice on board [rA7E7]
-    R . . . K B . R 0
-    P P . N Q . . P 1
-    . . . P . N . . 2
-    . . P p . B P . 3
-    . . . . . . . . 4
-    . . n . . n . . 5
-    p p p . b p p p 6
-    r . . q . r k . 7
-    A B C D E F G H 
-"""
