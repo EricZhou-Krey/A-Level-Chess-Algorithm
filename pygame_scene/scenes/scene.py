@@ -22,6 +22,9 @@ class Scene:
         self._overlay_scene.append(overlay)
         return self
 
+    def reset_overlay(self):
+        self._overlay_scene.clear()
+        
     def scene_replace(self, scene, replacement):
         for observer in self.observers:
             observer.replace_signal(scene, replacement)

@@ -774,3 +774,19 @@ if __name__ == "__main__":
     pass
     legal = bitBoard.legal_move_dict
     pass
+
+"""
+Rook can move through pieces after a castle for some reason
+- legal moves are bugged
+    -> En passant works on white pawns that have just move to the backrank of the oppoenent
+    -> rook can jump peice on board [rA7E7]
+    R . . . K B . R 0
+    P P . N Q . . P 1
+    . . . P . N . . 2
+    . . P p . B P . 3
+    . . . . . . . . 4
+    . . n . . n . . 5
+    p p p . b p p p 6
+    r . . q . r k . 7
+    A B C D E F G H 
+"""

@@ -1,6 +1,6 @@
 import sys, pygame, time, threading, copy, math
 sys.path.append("../A-Level-Chess-Algorithm")
-from pygame_scene.scenes.scene import Scene, SceneObserver
+from pygame_scene.scenes.scene import Scene, SceneObserver, Button, ButtonObserver
 from enum import Enum
 from my_dataclass import Vector, Queue
 from bitboard import BitBoard
@@ -143,14 +143,19 @@ class EvaluationBar(GameObserver, Scene):
             window.blit(text, text_rect)
         super().draw(window)
 
-class PlayerComponent():
+class PlayerComponent(ButtonObserver):
     def __init__(self, parent : GameScene) -> None:
         self.parent = parent
+        self.promotion_input = None
+        self.promote_to = None
         self.DRAG_DELAY = 0.5
         self.mouse_held_position = None
         self.drag_start_time = None
         self.selected_tile = None
-        
+    
+    def press_signal(self, button: Button):
+        self.promote_to = BitBoard.piece[self.promotion_input[button]]
+    
     def make_move_if_legal(self, to_vector : Vector, legal_moves):
         from_index = (7 - self.selected_tile.y) * 8 + (self.selected_tile.x)
         to_index = (7 - to_vector.y) * 8 + (to_vector.x)
@@ -159,19 +164,21 @@ class PlayerComponent():
             move_piece, move_colour = self.parent.bitboard.index_to_piece_key(from_index)
         except:
             return
+        
         move = ((move_piece, move_colour), from_index, to_index)
-        #temporary choosing for promotion
-        if move_piece == BitBoard.piece.PAWN and (move_colour == BitBoard.colour.BLACK and to_index // 8 == 0) \
-            or (move_colour == BitBoard.colour.WHITE and to_index // 8 == 7):
-                notation_to_key = {"r":(BitBoard.piece.ROOK, BitBoard.colour.WHITE), "n":(BitBoard.piece.KNIGHT, BitBoard.colour.WHITE), "b":(BitBoard.piece.BISHOP, BitBoard.colour.WHITE), \
-                "q":(BitBoard.piece.QUEEN, BitBoard.colour.WHITE), "k":(BitBoard.piece.KING, BitBoard.colour.WHITE), "p":(BitBoard.piece.PAWN, BitBoard.colour.WHITE), \
-                "R":(BitBoard.piece.ROOK, BitBoard.colour.BLACK), "P":(BitBoard.piece.PAWN, BitBoard.colour.BLACK), "B":(BitBoard.piece.BISHOP, BitBoard.colour.BLACK), \
-                "N":(BitBoard.piece.KNIGHT, BitBoard.colour.BLACK), "Q":(BitBoard.piece.QUEEN, BitBoard.colour.BLACK), "K":(BitBoard.piece.KING, BitBoard.colour.BLACK)}
-                string_piece = str(input("Enter the notation of the peice you want to promote to: "))
-                to_index = (to_index, notation_to_key[string_piece])
-
-        if from_index in legal_moves.keys() and to_index in legal_moves[from_index]:
-            self.parent.make_move(move)
+        
+        if from_index in legal_moves.keys() and (to_index in legal_moves[from_index] if type(legal_moves[from_index][0]) is int else [l_move[0] for l_move in legal_moves[from_index]]):
+            if type(legal_moves[from_index][0]) is tuple: 
+                self.promotion_input = {Button(100, 100, 30, text=t) : t for t in ["BISHOP", "KNIGHT", "ROOK", "QUEEN"]}
+                for ind, button in enumerate(self.promotion_input.keys()):
+                    button.observers.append(self)
+                    self.parent.add_overlay(button, Vector(self.parent.local_point.x+(100*ind), self.parent.local_point.y+(self.parent.dimensions.y//2)))
+                if self.promote_to:
+                    move = ((move_piece, move_colour), from_index, (to_index, (self.promote_to, move_colour)))
+                    self.parent.make_move(move)
+                    self.promote_input = self.promote_to = None
+                    self.parent.reset_overlay()
+            else: self.parent.make_move(move)
         
     def click_event(self, event, legal_moves):
         match event.button:
@@ -302,10 +309,11 @@ class PlayerVsPlayer(GameScene):
                     self.switch_colour(self.current_turn)
                     self._update_board(u_type=GameScene._update_type["REVERT"])
         Scene.while_event(self, event)
-                
+    
     def draw(self, window):
         if self.player_componenet.selected_tile:
             self.player_componenet.draw_board_with_selection(window, self._legal_moves, self._object_colour)
+            Scene.draw(self, window)
             return
         GameScene.draw(self, window)
     
@@ -346,6 +354,7 @@ class PlayerVsComputer(GameScene):
     def draw(self, window):
         if self.player_componenet.selected_tile:
             self.player_componenet.draw_board_with_selection(window, self._legal_moves, self._object_colour)
+            Scene.draw(self, window)
             return
         GameScene.draw(self, window)
 
@@ -408,23 +417,11 @@ class EvaluationBar(GameObserver, Scene):
 
 """
 Notes: 
-- Temporary console promotion promoted for pawns, should add UI element for prompt -> Removed but cant promote
+- Promotion and UI is overall very janky
 
 - The engine is utter trash and very, very slow (the engine evlauation function may be bugged)
-- Checkmate and stalemate unhandled so creates infinite threads when playing agianst a computer - temp fix stopping scene when game ends
+- Checkmate and stalemate unhandled so creates infinite threads when playing agianst a computer
     -> Check handling for move evaluation summons 3 knights when checking - not reliable reproducable
 
-- legal moves are bugged
-    -> rook can jump peice on board [rA7E7]
-    R . . . K B . R 0
-    P P . N Q . . P 1
-    . . . P . N . . 2
-    . . P p . B P . 3
-    . . . . . . . . 4
-    . . n . . n . . 5
-    p p p . b p p p 6
-    r . . q . r k . 7
-    A B C D E F G H 
-
-- On illegal pawn move to end of board: still askes for promotion
+Further development, create a seperate thread for drawing, events and updates depending on the type of action to decouple checks
 """

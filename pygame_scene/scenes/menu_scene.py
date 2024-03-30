@@ -6,7 +6,7 @@ from bitboard import BitBoard
 from pygame_scene.scenes.scene import Scene, SceneObserver, TextBox, TextBoxObserver, Button
 from pygame_scene.scenes.game_scene import PlayerVsComputer, PlayerVsPlayer, ComputerVsComputer, GameScene, EvaluationBar
 from enum import Enum
-from my_dataclass import Vector, Queue
+from my_dataclass import Vector
 
 """
 ENTIRE FILE IN PROGRESS`
@@ -341,13 +341,15 @@ class DatabaseComponent():
         with open("local_save.json", "w") as save_file:
             save_file.write(json.dumps(local_save, indent=4))
     
-    __game_sql = f"INSERT INTO Game(GameName, UserID, EngineID, DateTime, GameInformation, GameType) VALUES(%(name)s, %(user_id)s, %(engine_id)s, %(datetime)s, %(gameinfo)s, %(game_type)s)"
+    __new_game_sql = f"INSERT INTO Game(GameName, UserID, EngineID, DateTime, GameInformation, GameType) VALUES(%(name)s, %(user_id)s, %(engine_id)s, %(datetime)s, %(gameinfo)s, %(game_type)s)"
+    __update_game_sql = f"UPDATE Game SET GameInformation = %(gameinfo)s WHERE GameID = %(game_id)s"
     def save_game(self, applied_moves:list[tuple], game_type:str, name:str, game_id:int=None, user_id:int=-1, engine_id:int=1): #local userID is always -1 and default engine id is 1
         if not(applied_moves): return
         save_game = BitBoard.convert_to_save_game(applied_moves)
         self.save_local(save_game, game_type, name, game_id, user_id, engine_id)
         if user_id < 0: return
         values = {
+            "game_id" : game_id,
             "name" : name,
             "user_id" : user_id,
             "engine_id" : engine_id,
@@ -355,7 +357,7 @@ class DatabaseComponent():
             "gameinfo" : json.dumps(save_game, indent=4),
             "game_type" : game_type
             }
-        self.cursor.execute(DatabaseComponent.__game_sql, values)
+        self.cursor.execute(DatabaseComponent.__update_game_sql if game_id else DatabaseComponent.__new_game_sql, values)
         self.connection.commit()
         
 def main():
@@ -365,12 +367,10 @@ if __name__ == "__main__":
     main()
 
 """
-Save game feature
+For further development problems:
 Create menu button for each game scene
 -> menu button collisions, reason unknown, temporary solution of moving buttons
 
-Need to update sql and json file formatting to algin with each other, with the fucntions load save games, save_games etc
-Save to sql database duplicates itself
-
+Problems:
 Unhandled thread when closing game scene
 """

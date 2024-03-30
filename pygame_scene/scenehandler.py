@@ -1,8 +1,7 @@
 import pygame, sys
 sys.path.append("../A-Level-Chess-Algorithm")
-from pygame_scene.scenes.scene import Button, TextBox
-from pygame_scene.scenes.database_scene import MenuScene
-from pygame_scene.scenes.game_scene import Scene, PlayerVsPlayer, ComputerVsComputer, PlayerVsComputer, EvaluationBar, Vector, SceneObserver
+from pygame_scene.scenes.menu_scene import MenuScene
+from pygame_scene.scenes.game_scene import Scene, Vector, SceneObserver
 
 class PyGameWindow:
     def __init__(self, window_size, caption) -> None:
@@ -111,8 +110,6 @@ class SceneHandler(PyGameWindow, SceneObserver):
 if __name__ == "__main__":
     pygame.init()
     window = SceneHandler((850,800), "test")
-    """game_scene = PlayerVsPlayer(800, 800)"""
-    """button = TextBox(100, 100, 100)"""
     menu = MenuScene(850, 800)
     window.add_scene(menu)
     window.run()
