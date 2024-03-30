@@ -1,4 +1,8 @@
-import sys, pygame, time, threading, copy, math
+import sys, pygame
+from math import inf
+from copy import deepcopy
+from threading import Thread
+from time import time
 sys.path.append("../A-Level-Chess-Algorithm")
 from pygame_scene.scenes.scene import Scene, SceneObserver, Button, ButtonObserver
 from enum import Enum
@@ -7,8 +11,8 @@ from bitboard import BitBoard
 from enginepy import Engine
             
 class GameScene(Scene):
-    turn = Enum("turn", ["PLAYER", "COMPUTER"])
-    def __init__(self, width, height, bitboard=None):
+    turn : Enum = Enum("turn", ["PLAYER", "COMPUTER"])
+    def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None):
         super().__init__(width, height)
         self.observers : list[GameObserver] = []
         self.evaluation_component : EvaluationComponent = None
@@ -16,8 +20,8 @@ class GameScene(Scene):
         Piece images are loaded, resized and stored in a dictionary with their associated display notation used by the notation board
         """
         
-        self._updated_display_image = lambda self, image : pygame.transform.scale(image, (self.dimensions.x // 8, self.dimensions.y // 8))
-        self.notation_to_image = {name:self._updated_display_image(self, image) for name, image in \
+        self._updated_display_image : function = lambda self, image : pygame.transform.scale(image, (self.dimensions.x // 8, self.dimensions.y // 8))
+        self.notation_to_image : dict = {name:self._updated_display_image(self, image) for name, image in \
         zip(['p', 'r', 'b', 'n', 'q', 'k', 'P', 'R', 'B', 'N', 'Q', 'K'], \
             
         [pygame.image.load("Chess Piece Image/Chess_" + image_reference + ".svg").convert_alpha() for image_reference in \
@@ -28,40 +32,38 @@ class GameScene(Scene):
         class with this instance of the PlayerVsComputer scene
         """
         
-        if not(bitboard):
-            board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
-            self.bitboard : BitBoard = BitBoard(board)
-        else:
-            self.bitboard : BitBoard = bitboard
-        self._legal_moves = self.bitboard.legal_move_dict[0]
+        board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
+        self.bitboard : BitBoard = bitboard if bitboard else BitBoard(board)
+        self._legal_moves : dict = self.bitboard.legal_move_dict[0]
         
         """
         The notation board is extracted from the newly linked bitboard and formatted into a list with correct notation
         to refer to the images loaded previously
         """
-        self.vector_to_index = lambda vector : vector.x + (8 * (7 - vector.y))
-        self.index_to_vector = lambda index : Vector((index % 8), (7 - (index//8)))
+        self.vector_to_index : function = lambda vector : vector.x + (8 * (7 - vector.y))
+        self.index_to_vector : function = lambda index : Vector((index % 8), (7 - (index//8)))
         
-        self._updated_display_board = lambda self : [row[:15].split(" ") for row in self.bitboard.board_formatted[:141].split("\n")[:9]]
-        self.notation_board = self._updated_display_board(self)
+        self._updated_display_board : function = lambda self : [row[:15].split(" ") for row in self.bitboard.board_formatted[:141].split("\n")[:9]]
+        self.notation_board : list = self._updated_display_board(self)
         
-        self.current_turn = [BitBoard.colour.WHITE] # Using Python's list mutablity for turn tracking
+        self.current_turn : list[Enum] = [BitBoard.colour.WHITE] # Using Python's list mutablity for turn tracking
         """
         GUI colours for different features of the scene will be moved to json file later
         """
-        self._object_colour = {
+        self._object_colour : dict = {
             "LIGHT" : (50, 100, 50),
             "DARK" : (255, 255, 150),
             "SELECT" : (100, 100, 255),
             "POSSIBLE_MOVE" : (255, 100, 100)
         }
-        self._player_legal_move = lambda bitboard : bitboard.legal_move_dict[0]
+        self._player_legal_move : function = lambda bitboard : bitboard.legal_move_dict[0]
     
     @staticmethod
     def switch_colour(current_turn:list) -> None:
+        """ Switches an Enum to another, used for clarity """
         current_turn[0] = BitBoard.colour.BLACK if current_turn[0] == BitBoard.colour.WHITE else BitBoard.colour.WHITE
         
-    def resize(self, height, width) -> object:
+    def resize(self, height:int, width:int) -> object:
         """
         Automatically resizes game scene itself is loaded into a scene handler to fill the entire scene square based
         """
@@ -71,7 +73,11 @@ class GameScene(Scene):
             observer.resize_signal(self)
         return self
     
-    def draw(self, window) -> object:
+    def draw(self, window:pygame.surface.Surface) -> object:
+        """
+        Draws the chess board according to the notation board list stored as a property by alternating between black and white and 
+        rendering an image of a peice on the xy-place coordinate approriate to said pieces location
+        """
         tilesize = self.dimensions // 8
         for r_index, row in enumerate(self.notation_board):
             for c_index, notation in enumerate(row):
@@ -83,8 +89,12 @@ class GameScene(Scene):
                     window.blit(self.notation_to_image[notation], (c_index * (self.dimensions.x // 8), r_index * (self.dimensions.y // 8)))
         return super().draw(window)
     
-    _update_type = Enum("update_type", ["EDIT", "APPLY", "REVERT"])
-    def _update_board(self, move:tuple=None, u_type=None):
+    _update_type : Enum = Enum("update_type", ["EDIT", "APPLY", "REVERT"])
+    def _update_board(self, move:tuple=None, u_type:Enum=None) -> object:
+        """
+        Depending on the update type of the board for valid, invalid and reverting moves stated above the move is applied and then
+        the legal moves are updated and if empty i.e one player can no longer move the game is concluded and a signal is called
+        """
         u_type = u_type if u_type else GameScene._update_type.APPLY
         match u_type:
             case self._update_type.APPLY:
@@ -106,33 +116,41 @@ class GameScene(Scene):
         for observer in self.observers:
             if type(observer) is GameObserver:
                 observer.update_board_signal(self)
+        return self
 
-    def make_move(self, move:tuple=None):
+    def make_move(self, move:tuple=None) -> object:
         self._update_board(move)
+        return self
     
 class GameObserver(SceneObserver):
-    def __init__(self, game_scene : Scene):
+    def __init__(self, game_scene : Scene) -> None:
         super().__init__(game_scene)
         
-    def update_board_signal(self, parent : GameScene):
-        pass
+    def update_board_signal(self, parent : GameScene) -> None:
+        return self
     
-    def game_end_signal(self, game_scene : GameScene):
-        pass
+    def game_end_signal(self, game_scene : GameScene) -> None:
+        return self
     
 class EvaluationBar(GameObserver, Scene):
-    def __init__(self, game_scene : GameScene, width, height=0):
+    def __init__(self, game_scene : GameScene, width:int=50, height:int=0) -> None:
+        """
+        Evaluation bar is as tall as the game scene it is referencing on intialization and when the game scene is resized, also font is added
+        """
         GameObserver.__init__(self, game_scene)
         Scene.__init__(self, width, height)
-        self.parent = game_scene
+        self.parent : GameScene = game_scene
         self.dimensions.y = game_scene.dimensions.y
         
-        self.TEXT_FONT = pygame.font.Font("freesansbold.ttf", self.dimensions.x * 2 // 3)
+        self.TEXT_FONT : pygame.font.Font = pygame.font.Font("freesansbold.ttf", self.dimensions.x * 2 // 3)
         
-    def resize_signal(self, parent: GameScene):
+    def resize_signal(self, parent: GameScene) -> object:
+        """ Resized to match its referenced game scene """
         self.dimensions.y = parent.dimensions.y
+        return self
     
-    def draw(self, window):
+    def draw(self, window) -> object:
+        """ Grabs evaluation from thread on the parents scene's evaluation compoenent and scales a bar that represent this eval """
         pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y))
         evaluation = self.parent.evaluation_component.best_moves()
         if evaluation:
@@ -144,22 +162,26 @@ class EvaluationBar(GameObserver, Scene):
             text_rect = text.get_rect()
             text_rect.x, text_rect.y = self.local_point.x, self.local_point.y
             window.blit(text, text_rect)
-        super().draw(window)
+        return super().draw(window)
 
 class PlayerComponent(ButtonObserver):
     def __init__(self, parent : GameScene) -> None:
-        self.parent = parent
-        self.promotion_input = None
-        self.promote_to = None
-        self.DRAG_DELAY = 0.5
-        self.mouse_held_position = None
-        self.drag_start_time = None
-        self.selected_tile = None
+        """ """
+        self.parent : GameScene = parent
+        
+        self.promotion_input : list[Button] = None
+        self.promote_to : Enum = None
+        
+        self.DRAG_DELAY : float = 0.5
+        self.mouse_held_position : Vector = None
+        self.drag_start_time : float = None
+        self.selected_tile : Vector = None
     
-    def press_signal(self, button: Button):
+    def press_signal(self, button: Button) -> object:
         self.promote_to = BitBoard.piece[self.promotion_input[button]]
+        return self
     
-    def make_move_if_legal(self, to_vector : Vector, legal_moves):
+    def make_move_if_legal(self, to_vector : Vector, legal_moves : dict) -> object:
         from_index = (7 - self.selected_tile.y) * 8 + (self.selected_tile.x)
         to_index = (7 - to_vector.y) * 8 + (to_vector.x)
         self.selected_tile = None
@@ -182,6 +204,7 @@ class PlayerComponent(ButtonObserver):
                     self.promote_input = self.promote_to = None
                     self.parent.reset_overlay()
             else: self.parent.make_move(move)
+        return self
         
     def click_event(self, event, legal_moves):
         match event.button:
@@ -192,7 +215,7 @@ class PlayerComponent(ButtonObserver):
                         self.make_move_if_legal(self.mouse_held_position // (self.parent.dimensions // 8), legal_moves)
                     else:
                         self.selected_tile = self.mouse_held_position // (self.parent.dimensions // 8)
-                        self.drag_start_time = time.time()
+                        self.drag_start_time = time()
             case 3:
                 self.selected_tile = None
                 
@@ -202,7 +225,7 @@ class PlayerComponent(ButtonObserver):
                 self.mouse_held_position = None
                 mouse_vector = Vector(*pygame.mouse.get_pos())
                 if self.parent.vector_in_local_area(mouse_vector) and self.drag_start_time:
-                    if (time.time() - self.drag_start_time) > self.DRAG_DELAY:
+                    if (time() - self.drag_start_time) > self.DRAG_DELAY:
                         if self.selected_tile:
                             self.make_move_if_legal(mouse_vector // (self.parent.dimensions // 8), legal_moves)
                             
@@ -275,17 +298,17 @@ class EvaluationComponent():
         return self.__evaluation_threads[-1].engine.find_ordered_move_eval(self.__evaluation_threads[-1].engine.move_evaluation.copy()) \
             if self.__evaluation_threads[-1].engine.move_evaluation else []
     
-class EvaluationThread(threading.Thread):
+class EvaluationThread(Thread):
     def __init__(self, evaluation_component : EvaluationComponent, move_evaluation : dict = None, current_colour = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.parent = evaluation_component
         self.static_bitboard = self.parent.bitboard
-        self.engine = Engine(copy.deepcopy(self.static_bitboard))
+        self.engine = Engine(deepcopy(self.static_bitboard))
         self.__move_evaluation = move_evaluation
         self.__current_colour = current_colour
         
     def run(self):
-        self.engine.max_time = 0 if self.parent.auto_start else math.inf 
+        self.engine.max_time = 0 if self.parent.auto_start else inf 
         self.parent.auto_start = False
         self.engine.min_max_dict(current_colour=self.__current_colour, move_evaluation=self.__move_evaluation)
         self.parent.create_new_thread(self.engine.move_evaluation)
