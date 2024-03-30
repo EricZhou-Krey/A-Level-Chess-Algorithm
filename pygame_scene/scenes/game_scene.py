@@ -73,7 +73,7 @@ class GameScene(Scene):
             for c_index, notation in enumerate(row):
                 
                 tile_rect = pygame.Rect(c_index * tilesize.x, r_index * tilesize.y, tilesize.x, tilesize.y)
-                if (c_index + r_index) % 2 == 0: pygame.draw.rect(window, self._object_colour["LIGHT"], tile_rect)
+                if (c_index + r_index) % 2 == 1: pygame.draw.rect(window, self._object_colour["LIGHT"], tile_rect)
                 else: pygame.draw.rect(window, self._object_colour["DARK"], tile_rect)
                 if notation != ".":
                     window.blit(self.notation_to_image[notation], (c_index * (self.dimensions.x // 8), r_index * (self.dimensions.y // 8)))
@@ -94,12 +94,9 @@ class GameScene(Scene):
                 
         self._legal_moves = self._player_legal_move(self.bitboard)
         
-        """#checkmate trigger
-        if not(self._legal_moves) and input(str("Enter anything to exit game scene: ")):
-            if self.bitboard.king_safe(self.current_turn[0]):
-                print("Stalemate, draw")
-            else:
-                print(f"Checkmate, {self.current_turn[0]} loses")"""
+        if not(self._legal_moves):
+            for observer in self.observers:
+                observer.game_end_signal(self)
                 
         self.notation_board = self._updated_display_board(self)
         for observer in self.observers:
@@ -109,12 +106,14 @@ class GameScene(Scene):
     def make_move(self, move:tuple=None):
         self._update_board(move)
     
-    
 class GameObserver(SceneObserver):
     def __init__(self, game_scene : Scene):
         super().__init__(game_scene)
         
     def update_board_signal(self, parent : GameScene):
+        pass
+    
+    def game_end_signal(self, game_scene : GameScene):
         pass
     
 class EvaluationBar(GameObserver, Scene):
@@ -220,7 +219,7 @@ class PlayerComponent(ButtonObserver):
                 tile_rect = pygame.Rect(c_index * tilesize.x, r_index * tilesize.y, tilesize.x, tilesize.y)
                 if (c_index, r_index) in [(vector.x, vector.y) for vector in legal_move_vectors]:
                     pygame.draw.rect(window, object_colour["POSSIBLE_MOVE"], tile_rect)
-                elif (c_index + r_index) % 2 == 0: pygame.draw.rect(window, object_colour["LIGHT"], tile_rect)
+                elif (c_index + r_index) % 2 == 1: pygame.draw.rect(window, object_colour["LIGHT"], tile_rect)
                 else: pygame.draw.rect(window, object_colour["DARK"], tile_rect)
                 
                 if self.selected_tile and (c_index, r_index) == (self.selected_tile.x, self.selected_tile.y):

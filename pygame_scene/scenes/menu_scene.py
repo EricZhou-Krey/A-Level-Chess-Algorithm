@@ -4,7 +4,7 @@ from mysql.connector.connection import MySQLConnection
 sys.path.append("../A-Level-Chess-Algorithm")
 from bitboard import BitBoard
 from pygame_scene.scenes.scene import Scene, SceneObserver, TextBox, TextBoxObserver, Button
-from pygame_scene.scenes.game_scene import PlayerVsComputer, PlayerVsPlayer, ComputerVsComputer, GameScene, EvaluationBar
+from pygame_scene.scenes.game_scene import PlayerVsComputer, PlayerVsPlayer, ComputerVsComputer, GameScene, GameObserver, EvaluationBar
 from enum import Enum
 from my_dataclass import Vector
 
@@ -12,7 +12,7 @@ from my_dataclass import Vector
 ENTIRE FILE IN PROGRESS`
 """
 
-class MenuScene(Scene, TextBoxObserver, SceneObserver):
+class MenuScene(Scene, TextBoxObserver, GameObserver):
     style = Enum("style", ["DARK", "LIGHT"])
     def __init__(self, width, height, font_size:int=40, inactive_colour:tuple=(255,255,255)):
         Scene.__init__(self, width, height)
@@ -84,6 +84,16 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
         self.button_match.clear()
         self._overlay_scene.clear()
     
+    def exit_game_scene(self, game_scene : GameScene):
+        self.database_component.save_game(game_scene.bitboard.applied_moves, MenuScene.__game_scene_notation[type(game_scene)], "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else -1, engine_id=1)
+        self.reset_overlay()
+        self.load_main_menu()
+        if self.user_information and (user_id := self.user_information["UserID"]): self.load_user_information(user_id)
+        self.__display_user_information = True
+    
+    def game_end_signal(self, game_scene : GameScene):
+        self.exit_game_scene(game_scene)
+    
     __game_scene_notation = {PlayerVsComputer : "PvC", PlayerVsPlayer : "PvP", ComputerVsComputer : "CvC"}
     __notation_game_scene = {value : key for key, value in __game_scene_notation.items()}
     def press_signal(self, button : Button):
@@ -98,12 +108,9 @@ class MenuScene(Scene, TextBoxObserver, SceneObserver):
                 match self.button_match[button]:
                     case "ExitGameScene":
                         for overlay in self._overlay_scene:
-                            if isinstance(overlay, GameScene): # need to stop storing duplicate games
-                                self.database_component.save_game(overlay.bitboard.applied_moves, MenuScene.__game_scene_notation[type(overlay)], "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else 1, engine_id=1)
-                        self.reset_overlay()
-                        self.load_main_menu()
-                        if self.user_information and (user_id := self.user_information["UserID"]): self.load_user_information(user_id)
-                        self.__display_user_information = True
+                            if isinstance(overlay, GameScene):
+                                self.exit_game_scene(overlay)
+                                break
                     case "LoginConfirm":
                         if user_id := self.authentication():
                             self.reset_overlay()
