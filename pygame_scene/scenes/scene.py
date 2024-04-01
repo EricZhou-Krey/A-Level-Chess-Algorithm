@@ -188,7 +188,7 @@ class SceneObserver():
         scene.observers.append(self)
     
     def resize_signal(self, parent:Scene) -> object:
-        return object
+        return self
     
     def replace_signal(self, current:Scene=None, replacement:Scene=None) -> object:
         return self

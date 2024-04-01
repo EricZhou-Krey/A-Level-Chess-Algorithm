@@ -126,10 +126,10 @@ class GameObserver(SceneObserver):
     def __init__(self, game_scene : Scene) -> None:
         super().__init__(game_scene)
         
-    def update_board_signal(self, parent : GameScene) -> None:
+    def update_board_signal(self, parent : GameScene) -> object:
         return self
     
-    def game_end_signal(self, game_scene : GameScene) -> None:
+    def game_end_signal(self, game_scene : GameScene) -> object:
         return self
     
 class EvaluationBar(GameObserver, Scene):
@@ -193,7 +193,7 @@ class PlayerComponent(ButtonObserver):
         try:
             move_piece, move_colour = self.parent.bitboard.index_to_piece_key(from_index)
         except:
-            return
+            return self
         """ Constructs the move and identifies whether the move is a promotion and handles approriately """
         move = ((move_piece, move_colour), from_index, to_index)
         
@@ -218,7 +218,7 @@ class PlayerComponent(ButtonObserver):
             case 1:
                 """ If the user has not yet selected a piece: select the tile that they just clicked on, else check and make the move
                 with the to tile that was just clicked on"""
-                self.mouse_held_position = Vector(*pygame.mouse.get_pos())
+                self.mouse_held_position = Vector(*event.pos)
                 if self.parent.vector_in_local_area(self.mouse_held_position):
                     if self.selected_tile:
                         self.make_move_if_legal(self.mouse_held_position // (self.parent.dimensions // 8), legal_moves)
@@ -236,7 +236,7 @@ class PlayerComponent(ButtonObserver):
         match event.button:
             case 1:
                 self.mouse_held_position = None
-                mouse_vector = Vector(*pygame.mouse.get_pos())
+                mouse_vector = Vector(*event.pos)
                 if self.parent.vector_in_local_area(mouse_vector) and self.drag_start_time:
                     if (time() - self.drag_start_time) > self.DRAG_DELAY:
                         if self.selected_tile:
