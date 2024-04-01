@@ -1,10 +1,10 @@
 import pygame, sys
 sys.path.append("../A-Level-Chess-Algorithm")
-from pygame_scene.scenehandler import SceneHandler, ComputerVsComputer, PlayerVsPlayer, PlayerVsComputer, EvaluationBar, PyGameWindow
+from pygame_scene.scenehandler import SceneHandler, PyGameWindow
 from pygame_scene.scenes.scene import Scene, SceneObserver
-from pygame_scene.scenes.game_scene import GameScene, GameObserver
+from pygame_scene.scenes.game_scene import GameScene, GameObserver, PlayerVsPlayer, PlayerVsComputer, ComputerVsComputer
 from my_dataclass import Vector
-
+from bitboard import BitBoard
 """
 Scene & Scene Observer Tests
 """
@@ -64,6 +64,7 @@ def test_signals():
 """
 Scene Handler & PyGameWindow Tests
 """
+
 def test_pygame_window():
     pygame.init()
     window = PyGameWindow((100,100), "test")
@@ -94,17 +95,47 @@ GameScene & GameObserver Tests
 """
 
 def test_game_scene_init():
-    game_scene = GameScene(800, 800)
+    window = SceneHandler((850,800), "test")
+    window.add_scene(game_scene := GameScene(800, 800))
     assert game_scene
 
 def test_game_scene_resize():
-    game_scene = GameScene(800, 800)
+    window = SceneHandler((850,800), "test")
+    window.add_scene(game_scene := GameScene(800, 800))
     game_scene.resize(600,700)
     extract_xy = lambda vector : (vector.x, vector.y)
     assert extract_xy(game_scene.dimensions) == (600, 600)
 
-def test_game_scene():
-    pass
+def test_game_scene_make_move():
+    window = SceneHandler((850,800), "test")
+    window.add_scene(game_scene := GameScene(800, 800, BitBoard(notation_board="k..............................................................K")))
+    game_scene.make_move(((BitBoard.piece.KING, BitBoard.colour.WHITE), 0, 1))
+    assert game_scene.bitboard.bitboard_dict[(BitBoard.piece.KING, BitBoard.colour.WHITE)] == 2
+
+def test_game_scene_signals():
+    """class TestSceneObserver(SceneObserver):
+        def __init__(self, scene: Scene):
+            super().__init__(scene)
+            self.detect_replace = False
+        
+        def replace_signal(self, current, replacement):
+            self.detect_replace = True
+            
+    class TestSceneOverlay(Scene):
+        def __init__(self, width, height, local_point: Vector = None):
+            super().__init__(width, height, local_point)
+            self.detect_while_event = False
+            self.detect_while_update = False
+            self.detect_draw = False
+            
+        def draw(self, window):
+            self.detect_draw = True
+            
+        def while_event(self, event):
+            self.detect_while_event = True
+            
+        def while_update(self):
+            self.detect_while_update = True"""
 
 """
 PlayerComponent Tests
@@ -120,4 +151,7 @@ PvP, PvC, CvC and EvlauationBar Tests
 
     
 if __name__ == "__main__":
+    window = SceneHandler((850,800), "test")
+    window.add_scene(game_scene := GameScene(800, 800, BitBoard(notation_board="k..............................................................K")))
+    game_scene.make_move(((BitBoard.piece.KING, BitBoard.colour.WHITE), 0, 1))
     pass
