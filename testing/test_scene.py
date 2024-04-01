@@ -222,23 +222,32 @@ EvaluationComponent and EvalautionThread Tests
 """
 
 def test_evaluation_component_init():
-    pass
-
-def test_evaluation_thread_init():
-    pass
-
-def test_evaluation_thread_run():
-    pass
-
-
+    window = SceneHandler((850, 800), "test")
+    window.add_scene(game_scene := GameScene(bitboard=BitBoard(notation_board="k..............................................................K")))
+    evaluation_component = EvaluationComponent(game_scene)
+    assert True
+    
 def test_evaluation_update_thread():
-    pass
+    window = SceneHandler((850, 800), "test")
+    window.add_scene(game_scene := GameScene(bitboard=BitBoard(notation_board="k..............................................................K")))
+    evaluation_component = EvaluationComponent(game_scene)
+    evaluation_component.update_thread(((BitBoard.piece.KING, BitBoard.colour.WHITE), 0, 1))
+    assert evaluation_component._EvaluationComponent__evaluation_threads[-1].engine.max_time == 0
 
 def test_evaluation_create_new_thread():
-    pass
+    window = SceneHandler((850, 800), "test")
+    window.add_scene(game_scene := GameScene(bitboard=BitBoard(notation_board="k..............................................................K")))
+    evaluation_component = EvaluationComponent(game_scene)
+    evaluation_component.create_new_thread()
+    assert len(evaluation_component._EvaluationComponent__evaluation_threads) == 2
 
 def test_evaluation_best_moves():
-    pass
+    window = SceneHandler((850, 800), "test")
+    window.add_scene(game_scene := GameScene(bitboard=BitBoard(notation_board="k..............................................................K")))
+    evaluation_component = EvaluationComponent(game_scene, auto_start=True)
+    while not(evaluation_component.best_moves()):
+        pass
+    assert evaluation_component.best_moves()
 
 """
 PvP, PvC, CvC and EvlauationBar Tests
@@ -252,14 +261,8 @@ Menu Database and etc Tests
 if __name__ == "__main__":
     window = SceneHandler((850, 800), "test")
     window.add_scene(game_scene := GameScene(bitboard=BitBoard(notation_board="k..............................................................K")))
-    event = pygame.event.Event(1026, {
-        "pos" : (1,1),
-        "button" : 1,
-        "touch" : False,
-        "window" : None
-    })
-    player_component = PlayerComponent(game_scene)
-    player_component.mouse_held_position = Vector(1,1)
-    player_component.release_event(event, game_scene.bitboard.legal_move_dict[0])
-    assert not(player_component.mouse_held_position)
+    evaluation_component = EvaluationComponent(game_scene, auto_start=True)
+    while not(evaluation_component.best_moves()):
+        pass
+    assert evaluation_component.best_moves()
     pass

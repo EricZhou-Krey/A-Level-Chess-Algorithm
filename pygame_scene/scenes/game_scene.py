@@ -323,7 +323,7 @@ class EvaluationComponent():
         self.__evaluation_threads[-1].engine.max_time = 0
         return self
 
-    def create_new_thread(self, move_evaluation:dict) -> object:
+    def create_new_thread(self, move_evaluation:dict=[]) -> object:
         """ Called at the end of the thread that is halted and creates a thread with an updated board, if the update thread was used the latest 
         item on the queue is poped as it has finished its request """
         move_evaluation = move_evaluation[self.__update_move] if move_evaluation and self.__update_move in move_evaluation.keys() \
