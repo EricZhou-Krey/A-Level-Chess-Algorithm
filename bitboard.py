@@ -553,6 +553,8 @@ class BitBoard(IPiece):
         move_dict = self.move_dict[0]
         for origin in move_dict.keys():
             for to in move_dict[origin]:
+                if type(to) is tuple:
+                    to, _ = to
                 if to == king_origin:
                     return False
         return True
@@ -770,4 +772,6 @@ class BitBoard(IPiece):
         return pw_board, pd_board
     
 if __name__ == "__main__":
+    bitboard = BitBoard("rnbqkbnrpppppppp...............................NPPPP.pPPRNBQKB.R")
+    bitboard.king_safe(BitBoard.colour.BLACK)
     pass
