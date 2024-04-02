@@ -133,7 +133,6 @@ class SceneHandler(PyGameWindow, SceneObserver):
         pygame.quit()
 
 if __name__ == "__main__":
-    pygame.init()
     window = SceneHandler((850,800), "test")
     menu = MenuScene(850, 800)
     window.add_scene(menu)

@@ -1,7 +1,8 @@
-import pygame, sys
+import pygame, sys, time
 sys.path.append("../A-Level-Chess-Algorithm")
 from pygame_scene.scenehandler import SceneHandler, PyGameWindow
 from pygame_scene.scenes.scene import Scene, SceneObserver
+from pygame_scene.scenes.menu_scene import MenuScene, MenuObserver
 from pygame_scene.scenes.game_scene import GameScene, GameObserver, PlayerVsPlayer, PlayerVsComputer, ComputerVsComputer, PlayerComponent, EvaluationComponent
 from my_dataclass import Vector
 from bitboard import BitBoard
@@ -216,7 +217,6 @@ def test_mouse_motion_event():
     extract_xy = lambda vector : (vector.x, vector.y)
     assert extract_xy(player_component.mouse_held_position) == (1,1)
     
-
 """
 EvaluationComponent and EvalautionThread Tests
 """
@@ -250,19 +250,49 @@ def test_evaluation_best_moves():
     assert evaluation_component.best_moves()
 
 """
-PvP, PvC, CvC and EvlauationBar Tests
+Component Intergration (in PvP, PvC and CvC) Evaluation Bar Tests
 """
 
+def test_integration_scene_init():
+    window = SceneHandler((850, 800), "test")
+    window.add_scene(pvp := PlayerVsPlayer()).add_scene(pvc := PlayerVsComputer()).add_scene(cvc := ComputerVsComputer())
+    assert len(window._SceneHandler__scenes) == 3
+    
+def test_player_componenet_integration():
+    window = SceneHandler((850, 800), "test")
+    window.add_scene(pvp := PlayerVsPlayer())
+    click_event = pygame.event.Event(1025, {
+        "pos" : (1,1),
+        "button" : 1,
+        "touch" : False,
+        "window" : None
+    })
+    mouse_motion_event = pygame.event.Event(1024, {
+        "pos" : (1,1),
+        "rel" : (0,0),
+        "buttons" : (0,0,0),
+        "touch" : False,
+        "window" : None
+    })
+    extract_xy = lambda vector : (vector.x, vector.y)
+    
+    pvp.while_event(click_event)
+    assert extract_xy(pvp.player_componenet.selected_tile) == (0,0)
+    
+    pvp.while_event(mouse_motion_event)
+    assert extract_xy(pvp.player_componenet.mouse_held_position) == (1,1)
+    
+    
 """
 Menu Database and etc Tests
 """
 
-    
+def test_menu_scene_init():
+    pygame.init()
+    window = SceneHandler((850,800), "test")
+    menu = MenuScene(850, 800)
+    window.add_scene(menu)
+
+
 if __name__ == "__main__":
-    window = SceneHandler((850, 800), "test")
-    window.add_scene(game_scene := GameScene(bitboard=BitBoard(notation_board="k..............................................................K")))
-    evaluation_component = EvaluationComponent(game_scene, auto_start=True)
-    while not(evaluation_component.best_moves()):
-        pass
-    assert evaluation_component.best_moves()
     pass
