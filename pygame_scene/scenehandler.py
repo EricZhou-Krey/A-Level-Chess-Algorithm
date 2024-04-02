@@ -51,6 +51,7 @@ class SceneHandler(PyGameWindow, SceneObserver):
         """ Assigns local point and appends to parent overlay_scenes when adding an overlay """
         self.__overlay_scene.append(overlay)
         overlay.local_point = local_point
+        overlay.observers.append(self)
         return self
         
     def __get_new_local_point(self, scene:Scene) -> Vector:
