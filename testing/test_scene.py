@@ -1,4 +1,4 @@
-import pygame, sys, time
+import pygame, sys
 sys.path.append("../A-Level-Chess-Algorithm")
 from pygame_scene.scenehandler import SceneHandler, PyGameWindow
 from pygame_scene.scenes.scene import Scene, SceneObserver

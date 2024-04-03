@@ -131,38 +131,6 @@ class GameObserver(SceneObserver):
     
     def game_end_signal(self, game_scene : GameScene) -> object:
         return self
-    
-class EvaluationBar(GameObserver, Scene):
-    def __init__(self, game_scene : GameScene, width:int=50, height:int=0) -> None:
-        """
-        Evaluation bar is as tall as the game scene it is referencing on intialization and when the game scene is resized, also font is added
-        """
-        GameObserver.__init__(self, game_scene)
-        Scene.__init__(self, width, height)
-        self.parent : GameScene = game_scene
-        self.dimensions.y = game_scene.dimensions.y
-        
-        self.TEXT_FONT : pygame.font.Font = pygame.font.Font("freesansbold.ttf", self.dimensions.x * 2 // 3)
-        
-    def resize_signal(self, parent: GameScene) -> object:
-        """ Resized to match its referenced game scene """
-        self.dimensions.y = parent.dimensions.y
-        return self
-    
-    def draw(self, window) -> object:
-        """ Grabs evaluation from thread on the parents scene's evaluation compoenent and scales a bar that represent this eval """
-        pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y))
-        evaluation = self.parent.evaluation_component.best_moves()
-        if evaluation:
-            number_eval = evaluation[0][1]
-            advantage_scale = 0.5 - (number_eval / 10000) 
-            pygame.draw.rect(window, (0,0,0), pygame.Rect(self.local_point.x, self.local_point.y, self.dimensions.x, self.dimensions.y * advantage_scale))
-            
-            text = self.TEXT_FONT.render(str(round(advantage_scale * 10, 1)), True, (255,255,255))
-            text_rect = text.get_rect()
-            text_rect.x, text_rect.y = self.local_point.x, self.local_point.y
-            window.blit(text, text_rect)
-        return super().draw(window)
 
 class PlayerComponent(ButtonObserver):
     def __init__(self, parent : GameScene) -> None:
@@ -197,7 +165,8 @@ class PlayerComponent(ButtonObserver):
         """ Constructs the move and identifies whether the move is a promotion and handles approriately """
         move = ((move_piece, move_colour), from_index, to_index)
         
-        if from_index in legal_moves.keys() and (to_index in legal_moves[from_index] if type(legal_moves[from_index][0]) is int else [l_move[0] for l_move in legal_moves[from_index]]):
+        if from_index in legal_moves.keys() and (to_index in legal_moves[from_index] if \
+            type(legal_moves[from_index][0]) is int else [l_move[0] for l_move in legal_moves[from_index]]):
             if type(legal_moves[from_index][0]) is tuple: 
                 self.promotion_input = {Button(100, 100, 30, text=t) : t for t in ["BISHOP", "KNIGHT", "ROOK", "QUEEN"]}
                 for ind, button in enumerate(self.promotion_input.keys()):
@@ -256,7 +225,8 @@ class PlayerComponent(ButtonObserver):
         """
         tilesize = self.parent.dimensions // 8
         if self.selected_tile and self.parent.vector_to_index(self.selected_tile) in legal_moves.keys():
-            legal_move_vectors = [self.parent.index_to_vector(index) if type(index) is int else self.parent.index_to_vector(index[0]) for index in legal_moves[self.parent.vector_to_index(self.selected_tile)]]
+            legal_move_vectors = [self.parent.index_to_vector(index) if type(index) is int else \
+                self.parent.index_to_vector(index[0]) for index in legal_moves[self.parent.vector_to_index(self.selected_tile)]]
         else: legal_move_vectors = []
         
         """
@@ -282,16 +252,18 @@ class PlayerComponent(ButtonObserver):
                     pygame.draw.rect(window, object_colour["SELECT"], tile_rect)
                     if notation != ".":
                         if self.mouse_held_position and self.parent.vector_in_local_area(self.mouse_held_position):
-                            selected_piece_drag_position = (self.mouse_held_position.x - ((self.parent.dimensions.x // 8) // 2), self.mouse_held_position.y - ((self.parent.dimensions.y // 8) // 2))
+                            selected_piece_drag_position = (self.mouse_held_position.x - ((self.parent.dimensions.x // 8) // 2), \
+                                self.mouse_held_position.y - ((self.parent.dimensions.y // 8) // 2))
                             selected_notation = notation
                         else:
-                            window.blit(self.parent.notation_to_image[notation], (c_index * (self.parent.dimensions.x // 8), r_index * (self.parent.dimensions.y // 8)))
+                            window.blit(self.parent.notation_to_image[notation], (c_index * (self.parent.dimensions.x // 8), \
+                                r_index * (self.parent.dimensions.y // 8)))
                 elif notation != ".":
-                    window.blit(self.parent.notation_to_image[notation], (c_index * (self.parent.dimensions.x // 8), r_index * (self.parent.dimensions.y // 8)))
+                    window.blit(self.parent.notation_to_image[notation], (c_index * (self.parent.dimensions.x // 8), r_index * \
+                        (self.parent.dimensions.y // 8)))
                     
         if selected_notation and selected_piece_drag_position:
-            window.blit(self.parent.notation_to_image[selected_notation], selected_piece_drag_position)
-            
+            window.blit(self.parent.notation_to_image[selected_notation], selected_piece_drag_position) 
         return self
         
 class EvaluationComponent():
@@ -500,7 +472,8 @@ class EvaluationBar(GameObserver, Scene):
         if evaluation:
             number_eval = evaluation[0][1]
             advantage_scale = 0.5 - (number_eval / 10000) 
-            pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y + self.dimensions.y * advantage_scale, self.dimensions.x, self.dimensions.y))
+            pygame.draw.rect(window, (255,255,255), pygame.Rect(self.local_point.x, self.local_point.y + self.dimensions.y * advantage_scale,\
+                self.dimensions.x, self.dimensions.y))
             
             text = self.TEXT_FONT.render(str(round(advantage_scale * 10, 1)), True, (255,255,255))
             text_rect = text.get_rect()
