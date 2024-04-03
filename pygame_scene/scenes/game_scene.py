@@ -337,7 +337,7 @@ class PlayerVsPlayer(GameScene):
     def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
         super().__init__(width, height, bitboard)
         """ Intializes with player and engine componenet for evlauation bar and user inputs, and split lambda function so each player can see the correct legal moves """
-        self.evaluation_component = EvaluationComponent(self)
+        self.evaluation_component = EvaluationComponent(self, auto_start=True)
         self.player_componenet = PlayerComponent(self)
         self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0]
         
@@ -375,8 +375,9 @@ class PlayerVsPlayer(GameScene):
 class PlayerVsComputer(GameScene):
     def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
         super().__init__(width, height, bitboard)
-        """ Intializes with player and engine componenet for evlauation bar and user inputs, and split lambda function so the player can see the correct legal moves"""
-        self.evaluation_component = EvaluationComponent(self)
+        """ Intializes with player and engine componenet for evlauation bar and user inputs,
+        and split lambda function so the player can see the correct legal moves"""
+        self.evaluation_component = EvaluationComponent(self, auto_start=True)
         self.player_componenet = PlayerComponent(self)
         self.player_colour = BitBoard.colour.WHITE
         self.computer_colour = BitBoard.colour.BLACK
@@ -466,7 +467,6 @@ class EvaluationBar(GameObserver, Scene):
 
     def draw(self, window:pygame.surface.Surface) -> object:
         """ Draws evaluation by scaling a black bar and white bar that represent the advanatage of the best currrent move for each the player"""
-        #may be bugged
         Scene.draw(self, window)
         evaluation = self.parent.evaluation_component.best_moves()
         if evaluation:
@@ -484,7 +484,7 @@ class EvaluationBar(GameObserver, Scene):
 
 """
 Notes: 
-Further development:
+Further development:`
     -> Promotion and UI is overall very janky
     -> The engine is utter trash and very, very slow (the engine evlauation function may be bugged
     -> Create a seperate thread for drawing, events and updates depending on the type of action to decouple checks
