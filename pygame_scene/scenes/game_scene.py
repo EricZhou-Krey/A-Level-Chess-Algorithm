@@ -336,7 +336,8 @@ class EvaluationThread(Thread):
 class PlayerVsPlayer(GameScene):
     def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
         super().__init__(width, height, bitboard)
-        """ Intializes with player and engine componenet for evlauation bar and user inputs, and split lambda function so each player can see the correct legal moves """
+        """ Intializes with player and engine componenet for evlauation bar and user inputs
+        and split lambda function so each player can see the correct legal moves """
         self.evaluation_component = EvaluationComponent(self, auto_start=True)
         self.player_componenet = PlayerComponent(self)
         self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0]

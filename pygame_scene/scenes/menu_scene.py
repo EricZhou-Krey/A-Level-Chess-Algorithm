@@ -9,7 +9,6 @@ sys.path.append("../A-Level-Chess-Algorithm")
 from bitboard import BitBoard
 from pygame_scene.scenes.scene import Scene, SceneObserver, TextBox, TextBoxObserver, Button
 from pygame_scene.scenes.game_scene import PlayerVsComputer, PlayerVsPlayer, ComputerVsComputer, GameScene, GameObserver, EvaluationBar
-from enum import Enum
 from my_dataclass import Vector
 
 
@@ -42,7 +41,8 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
     def load_authentication_menu(self) -> object:
         """ Setup for login buttons and text inputs """
         confirm_button = Button(50,50)
-        self.text_match = {textReference : TextBox(400, 50, 50) for textReference in ["LoginUsername", "LoginPassword", "SignUpUsername", "SignUpPassword", "SignUpEmail"]}
+        self.text_match = {textReference : TextBox(400, 50, 50) for textReference in \
+            ["LoginUsername", "LoginPassword", "SignUpUsername", "SignUpPassword", "SignUpEmail"]}
         self.add_overlay(self.text_match["LoginUsername"], Vector(0, 50))
         self.add_overlay(self.text_match["LoginPassword"], Vector(0, 150))
         self.add_overlay(confirm_button, Vector(50, 250))
@@ -73,7 +73,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         """ Creates 3 buttons relating to each of the game options that can be chosen and adds buttons to overlay and dictionary to 
         reference them when they are pressed later """
         game_scene_buttons = {
-            Button(200, 200, self.__font_size, text="PvP") : "PvP", #temp numbers for sizes
+            Button(200, 200, self.__font_size, text="PvP") : "PvP", #UI number for sizes, can be alter in further development
             Button(200, 200, self.__font_size, text="PvC") : "PvC",
             Button(200, 200, self.__font_size, text="CvC") : "CvC"
         }
@@ -105,7 +105,8 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
     def exit_game_scene(self, game_scene : GameScene) -> object:
         """ When exit game button is pressed or upon a checkmate, the game is saved to local save and database if a connection was established
         then main menu is loaded again for other games and if the user was already logged in then user information is displayed again """
-        self.database_component.save_game(game_scene.bitboard.applied_moves, MenuScene.__game_scene_notation[type(game_scene)], "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else -1, engine_id=1)
+        self.database_component.save_game(game_scene.bitboard.applied_moves, MenuScene.__game_scene_notation[type(game_scene)], \
+            "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else -1, engine_id=1)
         self.reset_overlay()
         self.load_main_menu()
         if self.user_information and (user_id := self.user_information["UserID"]): self.load_user_information(user_id)
