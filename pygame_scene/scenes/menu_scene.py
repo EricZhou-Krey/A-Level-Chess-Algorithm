@@ -114,6 +114,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         then main menu is loaded again for other games and if the user was already logged in then user information is displayed again """
         self.database_component.save_game(game_scene.bitboard.applied_moves, MenuScene.__game_scene_notation[type(game_scene)], \
             "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else -1, engine_id=1)
+        game_scene.evaluation_component.stop_thread()
         self.reset_overlay()
         self.load_main_menu()
         if self.user_information and (user_id := self.user_information["UserID"]): self.load_user_information(user_id)
