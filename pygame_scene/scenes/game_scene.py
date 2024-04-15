@@ -486,12 +486,10 @@ class EvaluationBar(GameObserver, Scene):
             text_rect.x, text_rect.y = self.local_point.x, self.local_point.y
             window.blit(text, text_rect)
         return self
-            
 
 """
 Notes: 
 Further development:
     -> Promotion and UI is overall very janky
     -> The engine is utter trash and very, very slow (the engine evlauation function may be bugged
-    -> Create a seperate thread for drawing, events and updates depending on the type of action to decouple checks
 """
