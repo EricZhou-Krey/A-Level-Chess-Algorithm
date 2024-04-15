@@ -124,19 +124,21 @@ class ButtonObserver():
         return self
     
 class TextBox(Button):
-    def __init__(self, width:int=100, height:int=100, font_size:int=50, \
+    def __init__(self, width:int=100, height:int=100, font_size:int=50, writable:bool=True, \
         background_colour:tuple=(50,50,50), active_colour:tuple=(255,255,255), inactive_colour:tuple=(235,235,235), text:str="") -> None:
         super().__init__(width, height, font_size, background_colour, active_colour, inactive_colour, text=text)
         """
         Additionally to the button initalization, textboxes update the observer specification and have an active property for observers
         as it does not need to be held to listen to keyboard events 
         """
+        self.__writable = writable
         self.observers : list[TextBoxObserver] = []
         self.active : bool = False
     
     def pressed(self) -> object:
         """ Signals and active to listen to keyboard events or observer access """
         self.active = True
+        self.color = self.color_active
         return super().pressed()
     
     def text_entered(self) -> object:
@@ -155,7 +157,7 @@ class TextBox(Button):
         super().while_event(event)
         """ Listen to keyboard requests and acts like a text input """
         if event.type == pygame.KEYDOWN:
-            if self.active:
+            if self.active and self.__writable:
                 match event.key:
                     case pygame.K_TAB:
                         self.switch()

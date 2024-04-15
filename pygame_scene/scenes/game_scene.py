@@ -282,6 +282,10 @@ class EvaluationComponent():
         self.auto_start = auto_start
         self.__evaluation_threads = [EvaluationThread(self, daemon=True)]
         self.__evaluation_threads[-1].start()
+        
+    def stop_thread(self) -> None:
+        self.__evaluation_threads[-1].stop = True
+        self.update_thread(None)
 
     def update_thread(self, move:tuple) -> object:
         """ Updates the thread when a move is applied by sending a halt request (setting evaluation time to 0) and once ended the thread will stop and
@@ -319,6 +323,7 @@ class EvaluationThread(Thread):
         super().__init__(*args, **kwargs)
         """ Thread itself that runs the evaluation function of a engine by storing a copy of the static bitboard, used at the beginning and 
         an engine attached to a deepcopy (entirely seperate object pointer with same properties) that is used by the engine to simulate the game """
+        self.stop = False
         self.parent = evaluation_component
         self.static_bitboard = self.parent.bitboard
         self.engine = Engine(deepcopy(self.static_bitboard))
@@ -331,7 +336,7 @@ class EvaluationThread(Thread):
         self.engine.max_time = 0 if self.parent.auto_start else inf 
         self.parent.auto_start = False
         self.engine.min_max_dict(current_colour=self.__current_colour, move_evaluation=self.__move_evaluation)
-        self.parent.create_new_thread(self.engine.move_evaluation)
+        if not(self.stop): self.parent.create_new_thread(self.engine.move_evaluation)
             
 class PlayerVsPlayer(GameScene):
     def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
@@ -485,7 +490,7 @@ class EvaluationBar(GameObserver, Scene):
 
 """
 Notes: 
-Further development:`
+Further development:
     -> Promotion and UI is overall very janky
     -> The engine is utter trash and very, very slow (the engine evlauation function may be bugged
     -> Create a seperate thread for drawing, events and updates depending on the type of action to decouple checks

@@ -30,5 +30,6 @@ def main():
     
     
     #going to make mapping for every possible move, by outlining from index (64 - 6 bits), to index (64 - 6 bits) and piece (6 - 3 bits)
+    
 if __name__ == "__main__":    
     main()

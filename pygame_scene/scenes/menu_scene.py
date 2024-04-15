@@ -41,17 +41,24 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
     def load_authentication_menu(self) -> object:
         """ Setup for login buttons and text inputs """
         confirm_button = Button(50,50)
-        self.text_match = {textReference : TextBox(400, 50, 50) for textReference in \
-            ["LoginUsername", "LoginPassword", "SignUpUsername", "SignUpPassword", "SignUpEmail"]}
+        text_reference_name = ["LoginUsername", "LoginPassword", "SignUpUsername", "SignUpPassword", "SignUpEmail"]
+        text_label = {text_reference : TextBox(400, 50, 50, writable=False, background_colour=(0,0,0), active_colour=(255,255,255), \
+            inactive_colour=(255,255,255), text=text_reference) for text_reference in text_reference_name}
+        self.text_match = {text_reference : TextBox(400, 50, 50) for text_reference in text_reference_name}
+        self.add_overlay(text_label["LoginUsername"], Vector(0, 0))
         self.add_overlay(self.text_match["LoginUsername"], Vector(0, 50))
+        self.add_overlay(text_label["LoginPassword"], Vector(0, 100))
         self.add_overlay(self.text_match["LoginPassword"], Vector(0, 150))
         self.add_overlay(confirm_button, Vector(50, 250))
         self.button_match[confirm_button] = "LoginConfirm"
         
         """ Setup for registeration and signup text inputs """
         confirm_button = Button(50, 50)
+        self.add_overlay(text_label["SignUpUsername"], Vector(450, 0))
         self.add_overlay(self.text_match["SignUpUsername"], Vector(450, 50))
+        self.add_overlay(text_label["SignUpPassword"], Vector(450, 100))
         self.add_overlay(self.text_match["SignUpPassword"], Vector(450, 150))
+        self.add_overlay(text_label["SignUpEmail"], Vector(450, 200))
         self.add_overlay(self.text_match["SignUpEmail"], Vector(450, 250))
         self.add_overlay(confirm_button, Vector(450, 350))
         self.button_match[confirm_button] = "SignUpConfirm"
@@ -127,6 +134,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
             for overlay in [ov for ov in self._overlay_scene if type(ov) is TextBox]:
                 if button != overlay:
                     overlay.active = False
+                    overlay.color = overlay.color_inactive
         """
         Depending on buttons are pressed on the menu applies the correct events:
         - If textbox is pressed make sure its the only textbox active and accept keyboard inputs to that box
