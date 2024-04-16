@@ -1,4 +1,6 @@
-import sys, mysql.connector, pygame
+import sys, mysql.connector, pygame, socket
+from threading import Thread
+from random import choice
 from json import dumps, loads
 from re import compile
 from bcrypt import gensalt, hashpw
@@ -8,7 +10,7 @@ from mysql.connector.connection import MySQLConnection
 sys.path.append("../A-Level-Chess-Algorithm")
 from bitboard import BitBoard
 from pygame_scene.scenes.scene import Scene, SceneObserver, TextBox, TextBoxObserver, Button
-from pygame_scene.scenes.game_scene import PlayerVsComputer, PlayerVsPlayer, ComputerVsComputer, GameScene, GameObserver, EvaluationBar
+from pygame_scene.scenes.game_scene import OnlinePlayerVsPlayer, PlayerVsComputer, PlayerVsPlayer, ComputerVsComputer, GameScene, GameObserver, EvaluationBar
 from my_dataclass import Vector
 
 
@@ -76,17 +78,21 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         self.load_game_options()
         return self
     
+    __GAME_BUTTON_SIZE = 100
+    __GAME_BUTTON_SPACING = 150
     def load_game_options(self) -> object:
         """ Creates 3 buttons relating to each of the game options that can be chosen and adds buttons to overlay and dictionary to 
         reference them when they are pressed later """
+        gbs = MenuScene.__GAME_BUTTON_SIZE
         game_scene_buttons = {
-            Button(200, 200, self.__font_size, text="PvP") : "PvP", #UI number for sizes, can be alter in further development
-            Button(200, 200, self.__font_size, text="PvC") : "PvC",
-            Button(200, 200, self.__font_size, text="CvC") : "CvC"
+            Button(gbs, gbs, self.__font_size, text="PvP") : "PvP", #UI number for sizes, can be alter in further development
+            Button(gbs, gbs, self.__font_size, text="PvC") : "PvC",
+            Button(gbs, gbs, self.__font_size, text="CvC") : "CvC",
+            Button(gbs, gbs, self.__font_size, text="OPvP") : "OPvP"
         }
         self.button_match.update(game_scene_buttons)
         for ind, button in enumerate(game_scene_buttons.keys()):
-            self.add_overlay(button, Vector(ind*300, self.dimensions.y-200))
+            self.add_overlay(button, Vector(ind*MenuScene.__GAME_BUTTON_SPACING, self.dimensions.y-gbs))
         return self
     
     def add_overlay(self, overlay : Scene, local_point: Vector) -> object:
@@ -124,6 +130,13 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
     def game_end_signal(self, game_scene : GameScene) -> object:
         """ Decoupled from the exit game scene function for further development as this is distinct in that this call only occurs when
         a checkmate or stalemate is achieved and not when exit game button is pressed """
+        white_safe, black_safe = game_scene.bitboard.king_safe(BitBoard.colour.WHITE), game_scene.bitboard.king_safe(BitBoard.colour.BLACK)
+        if white_safe and not(black_safe):
+            pass
+            #update elo, for white win # marker
+        elif not(white_safe) and black_safe:
+            pass
+            #update elo, for black win # marker
         return self.exit_game_scene(game_scene)
     
     """ Converting to and from objects for json save and database entries """
@@ -155,11 +168,17 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                             if isinstance(overlay, GameScene):
                                 self.exit_game_scene(overlay)
                                 break
+                    case "Logout":
+                        self.user_information.clear()
+                        self.reset_overlay()
+                        self.load_main_menu()
                     case "LoginConfirm":
                         if user_id := self.authentication():
                             self.reset_overlay()
                             self.load_user_information(user_id)
                             self.load_game_options()
+                            self.button_match[button := Button(25, 25, 50, text="X")] = "Logout"
+                            self.add_overlay(button, Vector(self.local_point.x+self.dimensions.x-25, self.local_point.y+self.dimensions.y-25))
                         else:
                             self.failed_authentication()
                     case "SignUpConfirm":
@@ -167,9 +186,13 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                     case "PvP":
                         self.load_game(PlayerVsPlayer(self.dimensions.x-50, self.dimensions.y))
                     case "PvC":
-                        self.load_game(PlayerVsComputer(self.dimensions.x-50, self.dimensions.y))
+                        self.load_game(pvc := PlayerVsComputer(self.dimensions.x-50, self.dimensions.y))
+                        pvc.player_colour = choice([BitBoard.colour.BLACK, BitBoard.colour.WHITE])
                     case "CvC":
                         self.load_game(ComputerVsComputer(self.dimensions.x-50, self.dimensions.y))
+                    case "OPvP":
+                        self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y))
+                        if not(opvp.network_component.id): self.launch_server(opvp)
                     case int():
                         _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
                         apply_move = BitBoard.convert_from_save_game(game_move)
@@ -187,6 +210,10 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         self.add_overlay(button, Vector(self.local_point.x+self.dimensions.x-25, self.local_point.y+self.dimensions.y-25))
         self.__display_user_information = False
         return self
+    
+    def launch_server(self, online_game_scene : OnlinePlayerVsPlayer):
+        self.game_server_component = GameServerComponent(self)
+        online_game_scene.network_component.connect()
     
     def failed_authentication(self) -> object:
         """ For further development and access to local save when authentication is failed"""
@@ -207,7 +234,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         email = self.text_match["SignUpEmail"].text
         if not(username or password or email): return
         if not(MenuScene.__email_regex.match(email)):
-            self.__text_box[4].text = "invalid email"
+            self.text_match["SignUpEmail"].text = "invalid email"
             return self
         
         hashed_password, salt = self.authentication_component.hash_password(password)
@@ -450,7 +477,64 @@ class DatabaseComponent():
         self.cursor.execute(DatabaseComponent.__update_game_sql if game_id else DatabaseComponent.__new_game_sql, values)
         self.connection.commit()
         return self
+    
+class GameServerComponent():
+    def __init__(self, parent : GameScene) -> None:
+        self.__config = {
+            "server":"192.168.0.75",
+            "port": 5555
+            }
+        self.server_thread = GameServerThread(self.__config)
+        self.server_thread.start()
         
+class GameServerThread(Thread):
+    def __init__(self, config, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.__config = config
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.socket.bind(self.__config["server"], self.__config["port"])
+        except Exception as e:
+            print(e)
+            
+        self.socket.listen(2)
+        self.server_thread_connections = []
+        print("waiting for connection")
+    
+    def run(self) -> None:
+        while True:
+            connection, address = self.socket.accept()
+            
+            self.server_thread_connections.append(ServerConnection(connection))
+            self.server_thread_connections[-1].start()
+            
+class ServerConnection(Thread):
+    def __init__(self, connection : socket.socket, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.connection = connection
+    
+    def run(self):
+        self.connection.send(str.encode("Connected"))
+        relpy = ""
+        while True:
+            try:
+                data = self.connection.recv(2048)
+                reply = data.decode("utf-8")
+                if not(data):
+                    break
+                else:
+                    print("Receieved:", reply)
+                    print("Sending:", reply)
+                    
+                self.connection.sendall(str.encode(reply))
+            except Exception as e:
+                print(e)
+                break
+            
+        print("Lost connection")
+        self.connection.close()
+                    
+            
 def main():
     pass
     

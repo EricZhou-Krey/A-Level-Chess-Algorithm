@@ -1,4 +1,4 @@
-import sys, pygame
+import sys, pygame, socket
 from math import inf
 from copy import deepcopy
 from threading import Thread
@@ -34,7 +34,6 @@ class GameScene(Scene):
         
         board = "rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR"
         self.bitboard : BitBoard = bitboard if bitboard else BitBoard(board)
-        self._legal_moves : dict = self.bitboard.legal_move_dict[0]
         
         """
         The notation board is extracted from the newly linked bitboard and formatted into a list with correct notation
@@ -108,7 +107,7 @@ class GameScene(Scene):
                 
         self._legal_moves = self._player_legal_move(self.bitboard)
         
-        if not(self._legal_moves):
+        if not(self.bitboard.legal_move_dict[0]):
             for observer in self.observers:
                 observer.game_end_signal(self)
                 
@@ -346,6 +345,83 @@ class PlayerVsPlayer(GameScene):
         self.evaluation_component = EvaluationComponent(self, auto_start=True)
         self.player_componenet = PlayerComponent(self)
         self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0]
+        self._legal_moves : dict = self._player_legal_move(self.bitboard)
+        
+    def while_event(self, event:pygame.event.Event) -> object:
+        """ Sends events to approriate components or handles simply events like resizing and reverting a move """
+        match event.type:
+            case pygame.VIDEORESIZE:
+                self.resize(event.h, event.w)
+            case pygame.MOUSEBUTTONDOWN:
+                self.player_componenet.click_event(event, self._legal_moves)
+            case pygame.MOUSEBUTTONUP:
+                self.player_componenet.release_event(event, self._legal_moves)
+            case pygame.MOUSEMOTION:
+                self.player_componenet.mouse_motion_event(event)
+            case pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    self.switch_colour(self.current_turn)
+                    self._update_board(u_type=GameScene._update_type["REVERT"])
+        return Scene.while_event(self, event)
+    
+    def draw(self, window:pygame.surface.Surface) -> object:
+        """ Draws regular board if no selected tile or selection board from player component """
+        if self.player_componenet.selected_tile:
+            self.player_componenet.draw_board_with_selection(window, self._legal_moves, self._object_colour)
+            return Scene.draw(self, window)
+        return GameScene.draw(self, window)
+    
+    def make_move(self, move:tuple) -> object:
+        """ Updates base make move to switch colour and update evaluation thread """
+        self.switch_colour(self.current_turn)
+        self._update_board(move)
+        self.evaluation_component.update_thread(move)
+        return self
+      
+class NetworkComponent():
+    def __init__(self) -> None:
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server = "192.168.0.75"
+        self.port = 5555
+        self.address = (self.server, self.port)
+        self.id = self.connect()
+        print(self.id)
+    
+    def connect(self):
+        try:
+            self.client.connect(self.address)
+            return self.client.recv(2048).decode()
+        except Exception as e:
+            print(e)
+    
+    def send(self, data):
+        try:
+            self.client.send(str.encode(data))
+            return self.client.recv(2048).decode()
+        except Exception as e:
+            print(e)
+
+class OnlinePlayerVsPlayer(GameScene):
+    def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
+        super().__init__(width, height, bitboard)
+        """ Intializes with player and engine componenet for evlauation bar and user inputs
+        and split lambda function so each player can see the correct legal moves """
+        self.player_componenet = PlayerComponent(self)
+        self.__player_colour = BitBoard.colour.WHITE
+        self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
+        self._legal_moves : dict = self._player_legal_move(self.bitboard)
+        self.network_component = NetworkComponent()
+        
+    @property
+    def player_colour(self) -> Enum:
+        return self.__player_colour
+    
+    @player_colour.setter
+    def player_colour(self, value:Enum) -> None:
+        self.__player_colour = value
+        self.computer_colour = BitBoard.colour.BLACK if value == BitBoard.colour.WHITE else BitBoard.colour.WHITE
+        self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
+        self._legal_moves = self._player_legal_move(self.bitboard)
         
     def while_event(self, event:pygame.event.Event) -> object:
         """ Sends events to approriate components or handles simply events like resizing and reverting a move """
@@ -385,10 +461,22 @@ class PlayerVsComputer(GameScene):
         and split lambda function so the player can see the correct legal moves"""
         self.evaluation_component = EvaluationComponent(self, auto_start=True)
         self.player_componenet = PlayerComponent(self)
-        self.player_colour = BitBoard.colour.WHITE
         self.computer_colour = BitBoard.colour.BLACK
+        self.__player_colour = BitBoard.colour.WHITE
         self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
-
+        self._legal_moves : dict = self._player_legal_move(self.bitboard)
+        
+    @property
+    def player_colour(self) -> Enum:
+        return self.__player_colour
+    
+    @player_colour.setter
+    def player_colour(self, value:Enum) -> None:
+        self.__player_colour = value
+        self.computer_colour = BitBoard.colour.BLACK if value == BitBoard.colour.WHITE else BitBoard.colour.WHITE
+        self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
+        self._legal_moves = self._player_legal_move(self.bitboard)
+        
     def while_update(self) -> object:
         """ Fectches the best move from the evaluation component and if present and its the computer's moves applies said move """
         best_move = self.evaluation_component.best_moves()
