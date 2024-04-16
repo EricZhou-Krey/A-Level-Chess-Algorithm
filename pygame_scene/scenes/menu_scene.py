@@ -191,7 +191,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                     case "CvC":
                         self.load_game(ComputerVsComputer(self.dimensions.x-50, self.dimensions.y))
                     case "OPvP":
-                        self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y))
+                        self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y), with_eval=False)
                         if not(opvp.network_component.id): self.launch_server(opvp)
                     case int():
                         _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
@@ -201,12 +201,12 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                         self.load_game(game_scene)
         return self
     
-    def load_game(self, game_scene : GameScene) -> object:
+    def load_game(self, game_scene : GameScene, with_eval:bool=True) -> object:
         """ Loads the exit game scene button, game scene and evaluation bar to overlays """
         self.reset_overlay()
         self.button_match[button := Button(25, 25, 50, text="X")] = "ExitGameScene"
         self.add_overlay(game_scene, self.local_point)
-        self.add_overlay(EvaluationBar(game_scene, 50), Vector(self.local_point.x+self.dimensions.x-50, self.local_point.y))
+        if with_eval: self.add_overlay(EvaluationBar(game_scene, 50), Vector(self.local_point.x+self.dimensions.x-50, self.local_point.y))
         self.add_overlay(button, Vector(self.local_point.x+self.dimensions.x-25, self.local_point.y+self.dimensions.y-25))
         self.__display_user_information = False
         return self
@@ -481,7 +481,7 @@ class DatabaseComponent():
 class GameServerComponent():
     def __init__(self, parent : GameScene) -> None:
         self.__config = {
-            "server":"192.168.0.75",
+            "server":"127.0.0.1",
             "port": 5555
             }
         self.server_thread = GameServerThread(self.__config)
@@ -492,8 +492,9 @@ class GameServerThread(Thread):
         super().__init__(*args, **kwargs)
         self.__config = config
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            self.socket.bind(self.__config["server"], self.__config["port"])
+            self.socket.bind((self.__config["server"], self.__config["port"]))
         except Exception as e:
             print(e)
             

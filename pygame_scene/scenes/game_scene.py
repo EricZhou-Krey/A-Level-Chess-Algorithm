@@ -381,11 +381,10 @@ class PlayerVsPlayer(GameScene):
 class NetworkComponent():
     def __init__(self) -> None:
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server = "192.168.0.75"
+        self.server = "127.0.0.1"
         self.port = 5555
         self.address = (self.server, self.port)
-        self.id = self.connect()
-        print(self.id)
+        self.id = None
     
     def connect(self):
         try:
