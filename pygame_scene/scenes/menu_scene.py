@@ -192,7 +192,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                         self.load_game(ComputerVsComputer(self.dimensions.x-50, self.dimensions.y))
                     case "OPvP":
                         self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y), with_eval=False)
-                        if not(opvp.network_component.id): self.launch_server(opvp)
+                        if not(opvp.network_component.colour): self.launch_server(opvp)
                         #marker
                     case int():
                         _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
@@ -214,7 +214,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
     
     def launch_server(self, online_game_scene : OnlinePlayerVsPlayer):
         self.game_server_component = GameServerComponent(self)
-        online_game_scene.network_component.connect()
+        online_game_scene.network_component.colour = BitBoard.colour[online_game_scene.network_component.connect().split(".")[1]]
     
     def failed_authentication(self) -> object:
         """ For further development and access to local save when authentication is failed"""
@@ -479,6 +479,7 @@ class DatabaseComponent():
         self.connection.commit()
         return self
     
+    
 class GameServerComponent():
     def __init__(self, parent : GameScene) -> None:
         self.__config = {
@@ -505,31 +506,42 @@ class GameServerThread(Thread):
         print("waiting for connection")
     
     def run(self) -> None:
+        colour_pointer = 2
         while True:
             connection, address = self.socket.accept()
-            
-            self.server_thread_connections.append(ServerConnection(connection))
+            self.server_thread_connections.append(ServerConnection(connection, BitBoard.colour(colour_pointer)))
             self.server_thread_connections[-1].start()
+            colour_pointer -= 1
+            
+    #need to send data that repsents when the game is ready to play as both clients are connected
             
 class ServerConnection(Thread):
-    def __init__(self, connection : socket.socket, *args, **kwargs) -> None:
+    def __init__(self, connection : socket.socket, colour, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.colour = colour
         self.connection = connection
+        self.recent_move = "None"
+        self.connection.send(str.encode(str(self.colour)))
     
     def run(self):
-        self.connection.send(str.encode("Connected"))
-        relpy = ""
+        relpy = "?"
         while True:
             try:
                 data = self.connection.recv(2048)
                 reply = data.decode("utf-8")
-                if not(data):
-                    break
-                else:
-                    print("Receieved:", reply)
-                    print("Sending:", reply)
+                if not(data): break
+                print("Receieved:", reply)
+                match reply:
+                    case "Players?":
+                        print("Sending:", response := "2") #temp
+                    case "Move?":
+                        print("Sending:", response := self.recent_move)
+                    case _:
+                        self.recent_move = reply
+                        print("Sending:", response := self.recent_move)
                     
-                self.connection.sendall(str.encode(reply))
+                self.connection.sendall(str.encode(response))
+                
             except Exception as e:
                 print(e)
                 break
