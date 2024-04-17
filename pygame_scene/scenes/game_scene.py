@@ -1,4 +1,5 @@
 import sys, pygame, socket
+from select import select
 from math import inf
 from copy import deepcopy
 from threading import Thread
@@ -378,29 +379,45 @@ class PlayerVsPlayer(GameScene):
         self.evaluation_component.update_thread(move)
         return self
       
-class NetworkComponent():
+class NetworkComponent(): #marker
     def __init__(self) -> None:
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server = "127.0.0.1"
         self.port = 5555
         self.address = (self.server, self.port)
-        self.id = None
+        self.id = self.connect()
     
     def connect(self):
         try:
             self.client.connect(self.address)
+            self.send("Connected")
+            self.receiver_thread = NetworkReceiverThread(self.client)
+            self.receiver_thread.start()
             return self.client.recv(2048).decode()
         except Exception as e:
-            print(e)
-    
+            print(f"Server may not be online as: \n{e}")
+            
     def send(self, data):
         try:
             self.client.send(str.encode(data))
             return self.client.recv(2048).decode()
         except Exception as e:
             print(e)
+            
+class NetworkReceiverThread(Thread):
+    def __init__(self, connection : socket.socket, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.connection = connection
+        self.data_queue = Queue()
+    
+    def run(self):
+        while True:
+            data = self.connection.recv(2048).decode()
+            print(f"Recieved data: {data}")
+            self.data_queue.push(data)
+            
 
-class OnlinePlayerVsPlayer(GameScene):
+class OnlinePlayerVsPlayer(GameScene): #marker
     def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
         super().__init__(width, height, bitboard)
         """ Intializes with player and engine componenet for evlauation bar and user inputs
@@ -414,6 +431,9 @@ class OnlinePlayerVsPlayer(GameScene):
     @property
     def player_colour(self) -> Enum:
         return self.__player_colour
+    
+    def while_update(self) -> object:
+        return super().while_update()
     
     @player_colour.setter
     def player_colour(self, value:Enum) -> None:
@@ -448,9 +468,9 @@ class OnlinePlayerVsPlayer(GameScene):
     
     def make_move(self, move:tuple) -> object:
         """ Updates base make move to switch colour and update evaluation thread """
+        self.network_component.send(str(move))
         self.switch_colour(self.current_turn)
         self._update_board(move)
-        self.evaluation_component.update_thread(move)
         return self
 
 class PlayerVsComputer(GameScene):

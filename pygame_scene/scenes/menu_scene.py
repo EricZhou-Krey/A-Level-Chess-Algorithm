@@ -120,7 +120,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         then main menu is loaded again for other games and if the user was already logged in then user information is displayed again """
         self.database_component.save_game(game_scene.bitboard.applied_moves, MenuScene.__game_scene_notation[type(game_scene)], \
             "name", game_id=self.__current_game_id, user_id=self.user_information["UserID"] if self.user_information else -1, engine_id=1)
-        game_scene.evaluation_component.stop_thread()
+        if game_scene.evaluation_component: game_scene.evaluation_component.stop_thread()
         self.reset_overlay()
         self.load_main_menu()
         if self.user_information and (user_id := self.user_information["UserID"]): self.load_user_information(user_id)
@@ -140,7 +140,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         return self.exit_game_scene(game_scene)
     
     """ Converting to and from objects for json save and database entries """
-    __game_scene_notation = {PlayerVsComputer : "PvC", PlayerVsPlayer : "PvP", ComputerVsComputer : "CvC"}
+    __game_scene_notation = {PlayerVsComputer : "PvC", PlayerVsPlayer : "PvP", ComputerVsComputer : "CvC", OnlinePlayerVsPlayer : "OPvP"}
     __notation_game_scene = {value : key for key, value in __game_scene_notation.items()}
     def press_signal(self, button : Button) -> object:
         def handle_text_independance():
@@ -193,6 +193,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                     case "OPvP":
                         self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y), with_eval=False)
                         if not(opvp.network_component.id): self.launch_server(opvp)
+                        #marker
                     case int():
                         _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
                         apply_move = BitBoard.convert_from_save_game(game_move)
@@ -486,6 +487,7 @@ class GameServerComponent():
             }
         self.server_thread = GameServerThread(self.__config)
         self.server_thread.start()
+        #marker
         
 class GameServerThread(Thread):
     def __init__(self, config, *args, **kwargs) -> None:
