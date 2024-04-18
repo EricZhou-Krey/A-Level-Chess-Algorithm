@@ -379,16 +379,17 @@ class PlayerVsPlayer(GameScene):
         return self
             
 
-class OnlinePlayerVsPlayer(GameScene): #marker
+class OnlinePlayerVsPlayer(GameScene):
     def __init__(self, width:int=800, height:int=800, bitboard:BitBoard=None) -> None:
         super().__init__(width, height, bitboard)
         """ Intializes with player and engine componenet for evlauation bar and user inputs
         and split lambda function so each player can see the correct legal moves """
-        self.player_componenet = PlayerComponent(self)
-        self.__player_colour = BitBoard.colour.WHITE
-        self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
+        self.active : bool = False
+        self.player_componenet : PlayerComponent = PlayerComponent(self)
+        self.__player_colour : Enum = BitBoard.colour.WHITE
+        self._player_legal_move : function = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
         self._legal_moves : dict = self._player_legal_move(self.bitboard)
-        self.network_component = NetworkComponent(self)
+        self.network_component : NetworkComponent = NetworkComponent(self)
         
     @property
     def player_colour(self) -> Enum:
@@ -397,7 +398,6 @@ class OnlinePlayerVsPlayer(GameScene): #marker
     @player_colour.setter
     def player_colour(self, value:Enum) -> None:
         self.__player_colour = value
-        self.computer_colour = BitBoard.colour.BLACK if value == BitBoard.colour.WHITE else BitBoard.colour.WHITE
         self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
         self._legal_moves = self._player_legal_move(self.bitboard)
     
@@ -405,7 +405,7 @@ class OnlinePlayerVsPlayer(GameScene): #marker
     __str_colour_to_enum = lambda string_colour : BitBoard.colour(int(string_colour[-2]))
     
     def while_update(self) -> object:
-        response = self.network_component.send("Move?") #does not transfer information to another instance of the client
+        response = self.network_component.send("Move?")
         match response:
             case "None":
                 pass
@@ -413,13 +413,15 @@ class OnlinePlayerVsPlayer(GameScene): #marker
                 spce = OnlinePlayerVsPlayer.__str_piece_to_enum
                 scte = OnlinePlayerVsPlayer.__str_colour_to_enum
                 recent_move = [move_part.strip("( )") for move_part in response.split(",")]
-                recent_move = tuple([parameter_type(move) for parameter_type, move in zip([spce, scte, int, int, spce, scte][:len(recent_move)], recent_move)])
-                if recent_move[1] != self.__player_colour:
+                recent_move = [parameter_type(move) for parameter_type, move in zip([spce, scte, int, int, spce, scte][:len(recent_move)], recent_move)]
+                recent_move = ((recent_move[0], recent_move[1]), recent_move[2], recent_move[3]) if len(recent_move) == 4 else ((recent_move[0], recent_move[1]), recent_move[2], (recent_move[3], (recent_move[4], recent_move[5])))
+                if recent_move[0][1] == self.current_turn[0]:
                     self.make_move(recent_move, False)
         return super().while_update()
         
     def while_event(self, event:pygame.event.Event) -> object:
-        if int(self.network_component.send("Players?")) > 1:
+        self.active = True if self.active or int(self.network_component.send("Players?")) > 1 else False
+        if self.active:
             """ Sends events to approriate components or handles simply events like resizing and reverting a move """
             match event.type:
                 case pygame.VIDEORESIZE:
@@ -450,7 +452,7 @@ class OnlinePlayerVsPlayer(GameScene): #marker
         self._update_board(move)
         return self
      
-class NetworkComponent(): #marker
+class NetworkComponent():
     def __init__(self, parent : OnlinePlayerVsPlayer) -> None:
         self.parent = parent
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -477,7 +479,7 @@ class NetworkComponent(): #marker
         except Exception as e:
             print(f"Server may not be online as: \n{e}")
             
-    def send(self, data):
+    def send(self, data:str):
         try:
             self.client.send(str.encode(data))
             return self.client.recv(2048).decode()

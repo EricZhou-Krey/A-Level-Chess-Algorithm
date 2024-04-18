@@ -1,4 +1,5 @@
 import sys, mysql.connector, pygame, socket
+from enum import Enum
 from threading import Thread
 from random import choice
 from json import dumps, loads
@@ -85,7 +86,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         reference them when they are pressed later """
         gbs = MenuScene.__GAME_BUTTON_SIZE
         game_scene_buttons = {
-            Button(gbs, gbs, self.__font_size, text="PvP") : "PvP", #UI number for sizes, can be alter in further development
+            Button(gbs, gbs, self.__font_size, text="PvP") : "PvP",
             Button(gbs, gbs, self.__font_size, text="PvC") : "PvC",
             Button(gbs, gbs, self.__font_size, text="CvC") : "CvC",
             Button(gbs, gbs, self.__font_size, text="OPvP") : "OPvP"
@@ -127,16 +128,26 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         self.__display_user_information = True
         return self
     
+    #marker
+    
     def game_end_signal(self, game_scene : GameScene) -> object:
         """ Decoupled from the exit game scene function for further development as this is distinct in that this call only occurs when
         a checkmate or stalemate is achieved and not when exit game button is pressed """
+        if not(type(game_scene) in [OnlinePlayerVsPlayer, PlayerVsComputer]): return self.exit_game_scene(game_scene)
         white_safe, black_safe = game_scene.bitboard.king_safe(BitBoard.colour.WHITE), game_scene.bitboard.king_safe(BitBoard.colour.BLACK)
-        if white_safe and not(black_safe):
-            pass
-            #update elo, for white win # marker
-        elif not(white_safe) and black_safe:
-            pass
-            #update elo, for black win # marker
+        winner = BitBoard.colour.WHITE if white_safe and not(black_safe) else None
+        winner = BitBoard.colour.BLACK if not(white_safe) and black_safe else None
+        player_elo = None
+        match type(game_scene):
+            case OnlinePlayerVsPlayer():
+                online_game_scene : OnlinePlayerVsPlayer = game_scene
+                player_elo = online_game_scene.network_component.send("Elo?")
+            case PlayerVsComputer():
+                pvc : PlayerVsComputer = game_scene
+                if "EloRating" in self.user_information.keys(): player_elo = {self.user_information["UserID"] : (self.user_information["EloRating"], pvc.player_colour)}
+            case _:
+                pass
+        if player_elo: self.database_component.update_elo(player_elo, winner=winner)
         return self.exit_game_scene(game_scene)
     
     """ Converting to and from objects for json save and database entries """
@@ -166,6 +177,11 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                     case "ExitGameScene":
                         for overlay in self._overlay_scene:
                             if isinstance(overlay, GameScene):
+                                if type(game_scene) is OnlinePlayerVsPlayer:
+                                    online_game_scene : OnlinePlayerVsPlayer = game_scene
+                                    online_game_scene.network_component.send("Quit!")
+                                    player_elo = online_game_scene.network_component.send("Elo?")
+                                    self.database_component.update_elo(player_elo, loser=online_game_scene.player_colour)
                                 self.exit_game_scene(overlay)
                                 break
                     case "Logout":
@@ -193,7 +209,8 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                     case "OPvP":
                         self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y), with_eval=False)
                         if not(opvp.network_component.colour): self.launch_server(opvp)
-                        #marker
+                        if "EloRating" in self.user_information.keys(): opvp.network_component.send("Elo!", self.user_information["UserID"], str(self.user_information["EloRating"]))
+                        else: opvp.network_component.send("Elo! -1 100")
                     case int():
                         _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
                         apply_move = BitBoard.convert_from_save_game(game_move)
@@ -241,7 +258,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         hashed_password, salt = self.authentication_component.hash_password(password)
         upload_sql = f'INSERT INTO UserInformation(Username, Password, Salt, Email, EloRating) VALUES("{username}", "{hashed_password.decode("utf-8")}", "{salt.decode("utf-8")}", "{email}", 100)'
         self.database_component.upload(upload_sql)
-        self.__text_box[2].text = self.__text_box[3].text = self.__text_box[4].text = ""
+        self.text_match["SignUpUsername"].text = self.text_match["SignUpPassword"].text = self.text_match["SignUpEmail"].text = ""
         return self
     
     def authentication(self) -> int:
@@ -425,6 +442,16 @@ class DatabaseComponent():
         self.cursor.execute(select_sql)
         return self.cursor.fetchall()
     
+    def update_elo(self, player_elo : dict, winner:Enum=None, loser:Enum=None):
+        if winner == loser: return
+        switch_colour : function = lambda colour : BitBoard.colour.WHITE if colour == BitBoard.colour.BLACK else BitBoard.colour.BLACK
+        if not(winner): winner = switch_colour(loser)
+        if not(loser): loser = switch_colour(winner)
+        for user_id, (elo, colour) in player_elo.values():
+            
+            update_elo_sql = f"UPDATE UserInformation SET EloRating = {elo} WHERE UserID = {user_id}"
+            self.upload()
+    
     def save_local(self, save_game:list[int], game_type:str, name:str, game_id:int, user_id:int, engine_id:int) -> object:
         """ Loads and appends or creates local save if not present and writes to local save file with the saved game """
         try:
@@ -482,19 +509,19 @@ class DatabaseComponent():
     
 class GameServerComponent():
     def __init__(self, parent : GameScene) -> None:
-        self.__config = {
+        self.__config : dict = {
             "server":"127.0.0.1",
             "port": 5555
             }
-        self.server_thread = GameServerThread(self.__config)
+        self.server_thread : GameServerThread = GameServerThread(self.__config)
+        self.parent : GameScene = parent
         self.server_thread.start()
-        #marker
         
 class GameServerThread(Thread):
-    def __init__(self, config, *args, **kwargs) -> None:
+    def __init__(self, config : dict, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.__config = config
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__config : dict = config
+        self.socket : socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             self.socket.bind((self.__config["server"], self.__config["port"]))
@@ -503,44 +530,53 @@ class GameServerThread(Thread):
             
         self.socket.listen(2)
         self.server_thread_connections = []
+        
+        self.players_connected : int = 0
+        self.player_elo : dict = {}
+        self.recent_move : str = "None"
+        
         print("waiting for connection")
     
     def run(self) -> None:
-        colour_pointer = 2
         while True:
             connection, address = self.socket.accept()
-            self.server_thread_connections.append(ServerConnection(connection, BitBoard.colour(colour_pointer)))
+            self.players_connected += 1
+            self.server_thread_connections.append(ServerConnection(connection, BitBoard.colour(self.players_connected), self))
             self.server_thread_connections[-1].start()
-            colour_pointer -= 1
-            
-    #need to send data that repsents when the game is ready to play as both clients are connected
             
 class ServerConnection(Thread):
-    def __init__(self, connection : socket.socket, colour, *args, **kwargs) -> None:
+    def __init__(self, connection : socket.socket, colour : Enum, parent : GameServerThread, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.colour = colour
-        self.connection = connection
-        self.recent_move = "None"
+        self.parent : GameServerThread = parent
+        self.colour : Enum = colour
+        self.connection : socket.socket = connection
         self.connection.send(str.encode(str(self.colour)))
     
-    def run(self):
-        relpy = "?"
+    __elo_regex = compile("Elo! [0-9]+ [0-9]+") #Elo! userid elorating
+    def run(self) -> None:
+        relpy : str = "?"
         while True:
             try:
-                data = self.connection.recv(2048)
+                data : bytes = self.connection.recv(2048)
                 reply = data.decode("utf-8")
                 if not(data): break
                 print("Receieved:", reply)
                 match reply:
+                    case "Elo?":
+                        print("Sending:", response := self.parent.player_elo)
                     case "Players?":
-                        print("Sending:", response := "2") #temp
+                        print("Sending:", response := self.parent.players_connected)
                     case "Move?":
-                        print("Sending:", response := self.recent_move)
+                        print("Sending:", response := self.parent.recent_move)
+                    case str(s) if ServerConnection.__elo_regex.match(reply):
+                        reply_reference = reply.split(" ")
+                        self.parent.player_elo[reply_reference[1]] = (reply_reference[2], self.colour)
+                        print("Sending:", response := "None")
                     case _:
-                        self.recent_move = reply
-                        print("Sending:", response := self.recent_move)
+                        self.parent.recent_move = reply
+                        print("Sending:", response := self.parent.recent_move)
                     
-                self.connection.sendall(str.encode(response))
+                self.connection.sendall(str.encode(str(response)))
                 
             except Exception as e:
                 print(e)
