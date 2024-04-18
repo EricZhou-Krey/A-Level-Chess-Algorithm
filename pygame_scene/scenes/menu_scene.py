@@ -130,8 +130,8 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         return self
     
     def game_end_signal(self, game_scene : GameScene, winner:Enum=None) -> object:
-        """ Decoupled from the exit game scene function for further development as this is distinct in that this call only occurs when
-        a checkmate or stalemate is achieved and not when exit game button is pressed """
+        """ When a game correctly ends, from checkmate, disconnection and etc the evaluation of the players is updated in accordance to if they
+        won or losed and then the game scene is exited """
         if not(type(game_scene) in [OnlinePlayerVsPlayer, PlayerVsComputer]): return self.exit_game_scene(game_scene)
         player_elo = None
         match type(game_scene):
@@ -140,7 +140,8 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                 player_elo = literal_eval(online_game_scene.network_component.send("Elo?"))
             case PlayerVsComputer():
                 pvc : PlayerVsComputer = game_scene
-                if "EloRating" in self.user_information.keys(): player_elo = {self.user_information["UserID"] : (self.user_information["EloRating"], pvc.player_colour)}
+                if "EloRating" in self.user_information.keys():
+                    player_elo = {self.user_information["UserID"] : (self.user_information["EloRating"], pvc.player_colour)}
             case _:
                 pass
         if player_elo: self.database_component.update_elo(player_elo, winner=winner)
@@ -226,6 +227,8 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         return self
     
     def launch_server(self, online_game_scene : OnlinePlayerVsPlayer):
+        """ Server is launched and the game trying to launch the server for online player is automatically connected
+        with the colour of their pieces being their connection token `"""
         self.game_server_component = GameServerComponent(self)
         online_game_scene.network_component.colour = BitBoard.colour[online_game_scene.network_component.connect().split(".")[1]]
     
@@ -438,14 +441,16 @@ class DatabaseComponent():
         self.cursor.execute(select_sql)
         return self.cursor.fetchall()
     
+    __ELO_GAINLOSS : int = 5
     def update_elo(self, player_elo : dict, winner:Enum=None, loser:Enum=None):
+        """ For each player in a game, depending on a winner and loser colour enum their respective EloRatings are updated, without the mathematical models
+        that require a larger sample of players to create and they are committed to the database """
         if winner == loser: return
         switch_colour : function = lambda colour : BitBoard.colour.WHITE if colour == BitBoard.colour.BLACK else BitBoard.colour.BLACK
         if not(winner): winner = switch_colour(loser)
-        if not(loser): loser = switch_colour(winner)
         for user_id, (elo, colour) in player_elo.items():
             if not(user_id): continue
-            new_elo = elo + 5 if winner.name == colour else -5 #random number used currently
+            new_elo = elo + (DatabaseComponent.__ELO_GAINLOSS * 1 if winner.name == colour else -1)
             update_elo_sql = f"UPDATE UserInformation SET EloRating = {new_elo} WHERE UserID = {user_id}"
             self.upload(update_elo_sql)
     
@@ -506,6 +511,7 @@ class DatabaseComponent():
     
 class GameServerComponent():
     def __init__(self, parent : GameScene) -> None:
+        """ Added to a scene so that a seperate thread can run a server alongside the already existent game that will connect to said server automatically """
         self.__config : dict = {
             "server":"127.0.0.1",
             "port": 5555
@@ -516,6 +522,8 @@ class GameServerComponent():
         
 class GameServerThread(Thread):
     def __init__(self, config : dict, *args, **kwargs) -> None:
+        """ Thread that is to run the game server seperate of the game scenes by creating a server that can take 2 connections to 2 clients
+        representing the white and black player """
         super().__init__(*args, **kwargs)
         self.__config : dict = config
         self.socket : socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -528,6 +536,7 @@ class GameServerThread(Thread):
         self.socket.listen(2)
         self.server_thread_connections = []
         
+        """ Used to track values across clients and sent when called upon """
         self.players_connected : int = 0
         self.player_elo : dict = {}
         self.recent_move : str = "None"
@@ -537,6 +546,7 @@ class GameServerThread(Thread):
     
     def run(self) -> None:
         while True:
+            """ Creates a new thread whenever a new connection is accepted """
             connection, address = self.socket.accept()
             self.players_connected += 1
             self.server_thread_connections.append(ServerConnection(connection, BitBoard.colour(self.players_connected), self))
@@ -544,6 +554,8 @@ class GameServerThread(Thread):
             
 class ServerConnection(Thread):
     def __init__(self, connection : socket.socket, colour : Enum, parent : GameServerThread, *args, **kwargs) -> None:
+        """ Thread is opened and the colour is sent as a token to the client with the parent used to track values for
+        both players connected to the server """
         super().__init__(*args, **kwargs)
         self.parent : GameServerThread = parent
         self.colour : Enum = colour
@@ -552,6 +564,9 @@ class ServerConnection(Thread):
     
     __elo_regex = compile("Elo! -?[0-9]+ [0-9]+") #Elo! userid elorating
     def run(self) -> None:
+        """ Main loop for the connection from the server to the client, by recieving and responding to requests like asking for player
+        elos, players, recently played move, if the oppoenent made one this will notify the other client about it and elo regex to get
+        the elo from each of the clients """
         relpy : str = "?"
         while True:
             try:

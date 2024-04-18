@@ -400,14 +400,16 @@ class OnlinePlayerVsPlayer(GameScene):
     
     @player_colour.setter
     def player_colour(self, value:Enum) -> None:
+        """ Updates the player colour and functions related to that """
         self.__player_colour = value
         self._player_legal_move = lambda bitboard: bitboard.split_move_dict[self.current_turn[0]][0] if self.current_turn[0] == self.player_colour else {}
         self._legal_moves = self._player_legal_move(self.bitboard)
     
     __str_piece_to_enum = lambda string_piece : BitBoard.piece(int(string_piece[-2]))
     __str_colour_to_enum = lambda string_colour : BitBoard.colour(int(string_colour[-2]))
-    
     def while_update(self) -> object:
+        """ Requests recent move, extracts and applies said move if a new move is made else if the opponenet is has exited this call catches and returns GameEnd
+        handling the response properly by sending a end game signal """
         response = self.network_component.send("Move?")
         match response:
             case "None":
@@ -420,12 +422,14 @@ class OnlinePlayerVsPlayer(GameScene):
                 scte = OnlinePlayerVsPlayer.__str_colour_to_enum
                 recent_move = [move_part.strip("( )") for move_part in response.split(",")]
                 recent_move = [parameter_type(move) for parameter_type, move in zip([spce, scte, int, int, spce, scte][:len(recent_move)], recent_move)]
-                recent_move = ((recent_move[0], recent_move[1]), recent_move[2], recent_move[3]) if len(recent_move) == 4 else ((recent_move[0], recent_move[1]), recent_move[2], (recent_move[3], (recent_move[4], recent_move[5])))
+                recent_move = ((recent_move[0], recent_move[1]), recent_move[2], recent_move[3]) if len(recent_move) == 4 else \
+                    ((recent_move[0], recent_move[1]), recent_move[2], (recent_move[3], (recent_move[4], recent_move[5])))
                 if recent_move[0][1] == self.current_turn[0]:
                     self.make_move(recent_move, False)
         return super().while_update()
         
     def while_event(self, event:pygame.event.Event) -> object:
+        """ Will be active if both players are connected """
         self.active = True if self.active or int(self.network_component.send("Players?")) > 1 else False
         if self.active:
             """ Sends events to approriate components or handles simply events like resizing and reverting a move """
@@ -460,6 +464,7 @@ class OnlinePlayerVsPlayer(GameScene):
      
 class NetworkComponent():
     def __init__(self, parent : OnlinePlayerVsPlayer) -> None:
+        """ Handles connections to the a server by creating a client, recieves a playing colour token once connected to a server """
         self.parent = parent
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server = "127.0.0.1"
@@ -476,9 +481,11 @@ class NetworkComponent():
     
     @colour.setter
     def colour(self, value):
+        """ When the server sets the colour of the connection this is used to update the game scene's colour aswell """
         self.parent.player_colour = value
     
     def connect(self):
+        """ Tries to connect and return a token that verifies that it has connected else prints a debug message with expection """
         try:
             self.client.connect(self.address)
             return self.client.recv(2048).decode()
@@ -486,6 +493,8 @@ class NetworkComponent():
             print(f"Server may not be online as: \n{e}")
             
     def send(self, data:str):
+        """ Sends and receives data from the server by request, used for clarity later in the code to both receive, encode and
+        send simultaneously """
         try:
             self.client.send(str.encode(data))
             return self.client.recv(2048).decode()
