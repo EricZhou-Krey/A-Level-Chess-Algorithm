@@ -108,8 +108,11 @@ class GameScene(Scene):
         self._legal_moves = self._player_legal_move(self.bitboard)
         
         if not(self.bitboard.legal_move_dict[0]):
+            white_safe, black_safe = self.bitboard.king_safe(BitBoard.colour.WHITE), self.bitboard.king_safe(BitBoard.colour.BLACK)
+            winner = BitBoard.colour.WHITE if white_safe and not(black_safe) else None
+            winner = BitBoard.colour.BLACK if not(white_safe) and black_safe else None
             for observer in self.observers:
-                observer.game_end_signal(self)
+                observer.game_end_signal(self, winner)
                 
         self.notation_board = self._updated_display_board(self)
         for observer in self.observers:
@@ -128,7 +131,7 @@ class GameObserver(SceneObserver):
     def update_board_signal(self, parent : GameScene) -> object:
         return self
     
-    def game_end_signal(self, game_scene : GameScene) -> object:
+    def game_end_signal(self, game_scene : GameScene, winner:Enum=None) -> object:
         return self
 
 class PlayerComponent(ButtonObserver):
@@ -409,6 +412,9 @@ class OnlinePlayerVsPlayer(GameScene):
         match response:
             case "None":
                 pass
+            case "GameEnd":
+                for observer in self.observers:
+                    observer.game_end_signal(self, winner=self.player_colour)
             case _:
                 spce = OnlinePlayerVsPlayer.__str_piece_to_enum
                 scte = OnlinePlayerVsPlayer.__str_colour_to_enum

@@ -1,4 +1,5 @@
 import sys, mysql.connector, pygame, socket
+from ast import literal_eval
 from enum import Enum
 from threading import Thread
 from random import choice
@@ -130,18 +131,15 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
     
     #marker
     
-    def game_end_signal(self, game_scene : GameScene) -> object:
+    def game_end_signal(self, game_scene : GameScene, winner:Enum=None) -> object:
         """ Decoupled from the exit game scene function for further development as this is distinct in that this call only occurs when
         a checkmate or stalemate is achieved and not when exit game button is pressed """
         if not(type(game_scene) in [OnlinePlayerVsPlayer, PlayerVsComputer]): return self.exit_game_scene(game_scene)
-        white_safe, black_safe = game_scene.bitboard.king_safe(BitBoard.colour.WHITE), game_scene.bitboard.king_safe(BitBoard.colour.BLACK)
-        winner = BitBoard.colour.WHITE if white_safe and not(black_safe) else None
-        winner = BitBoard.colour.BLACK if not(white_safe) and black_safe else None
         player_elo = None
         match type(game_scene):
             case OnlinePlayerVsPlayer():
                 online_game_scene : OnlinePlayerVsPlayer = game_scene
-                player_elo = online_game_scene.network_component.send("Elo?")
+                player_elo = literal_eval(online_game_scene.network_component.send("Elo?"))
             case PlayerVsComputer():
                 pvc : PlayerVsComputer = game_scene
                 if "EloRating" in self.user_information.keys(): player_elo = {self.user_information["UserID"] : (self.user_information["EloRating"], pvc.player_colour)}
@@ -177,11 +175,11 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                     case "ExitGameScene":
                         for overlay in self._overlay_scene:
                             if isinstance(overlay, GameScene):
-                                if type(game_scene) is OnlinePlayerVsPlayer:
-                                    online_game_scene : OnlinePlayerVsPlayer = game_scene
-                                    online_game_scene.network_component.send("Quit!")
-                                    player_elo = online_game_scene.network_component.send("Elo?")
+                                if type(overlay) is OnlinePlayerVsPlayer:
+                                    online_game_scene : OnlinePlayerVsPlayer = overlay
+                                    player_elo = literal_eval(online_game_scene.network_component.send("Elo?")) #marker
                                     self.database_component.update_elo(player_elo, loser=online_game_scene.player_colour)
+                                    online_game_scene.network_component.send("Quit!")
                                 self.exit_game_scene(overlay)
                                 break
                     case "Logout":
@@ -210,7 +208,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                         self.load_game(opvp := OnlinePlayerVsPlayer(self.dimensions.x-50, self.dimensions.y), with_eval=False)
                         if not(opvp.network_component.colour): self.launch_server(opvp)
                         if "EloRating" in self.user_information.keys(): opvp.network_component.send("Elo!", self.user_information["UserID"], str(self.user_information["EloRating"]))
-                        else: opvp.network_component.send("Elo! -1 100")
+                        else: opvp.network_component.send("Elo! 0 100")
                     case int():
                         _, game_move, self.__current_game_id, game_type = self.user_information["SaveGame"][self.button_match[button]]
                         apply_move = BitBoard.convert_from_save_game(game_move)
@@ -447,10 +445,11 @@ class DatabaseComponent():
         switch_colour : function = lambda colour : BitBoard.colour.WHITE if colour == BitBoard.colour.BLACK else BitBoard.colour.BLACK
         if not(winner): winner = switch_colour(loser)
         if not(loser): loser = switch_colour(winner)
-        for user_id, (elo, colour) in player_elo.values():
-            
-            update_elo_sql = f"UPDATE UserInformation SET EloRating = {elo} WHERE UserID = {user_id}"
-            self.upload()
+        for user_id, (elo, colour) in player_elo.items():
+            if not(user_id): continue
+            new_elo = elo + 5 if winner.name == colour else -5 #random number used currently
+            update_elo_sql = f"UPDATE UserInformation SET EloRating = {new_elo} WHERE UserID = {user_id}"
+            self.upload(update_elo_sql)
     
     def save_local(self, save_game:list[int], game_type:str, name:str, game_id:int, user_id:int, engine_id:int) -> object:
         """ Loads and appends or creates local save if not present and writes to local save file with the saved game """
@@ -534,6 +533,7 @@ class GameServerThread(Thread):
         self.players_connected : int = 0
         self.player_elo : dict = {}
         self.recent_move : str = "None"
+        self.game_active : bool = True
         
         print("waiting for connection")
     
@@ -552,7 +552,7 @@ class ServerConnection(Thread):
         self.connection : socket.socket = connection
         self.connection.send(str.encode(str(self.colour)))
     
-    __elo_regex = compile("Elo! [0-9]+ [0-9]+") #Elo! userid elorating
+    __elo_regex = compile("Elo! -?[0-9]+ [0-9]+") #Elo! userid elorating
     def run(self) -> None:
         relpy : str = "?"
         while True:
@@ -567,17 +567,19 @@ class ServerConnection(Thread):
                     case "Players?":
                         print("Sending:", response := self.parent.players_connected)
                     case "Move?":
-                        print("Sending:", response := self.parent.recent_move)
+                        print("Sending:", response := self.parent.recent_move if self.parent.game_active else "GameEnd")
+                    case "Quit!":
+                        self.parent.game_active = False
+                        print("Sending:", response := "None")
                     case str(s) if ServerConnection.__elo_regex.match(reply):
                         reply_reference = reply.split(" ")
-                        self.parent.player_elo[reply_reference[1]] = (reply_reference[2], self.colour)
+                        self.parent.player_elo[reply_reference[1]] = (reply_reference[2], self.colour.name)
                         print("Sending:", response := "None")
                     case _:
                         self.parent.recent_move = reply
                         print("Sending:", response := self.parent.recent_move)
                     
                 self.connection.sendall(str.encode(str(response)))
-                
             except Exception as e:
                 print(e)
                 break
