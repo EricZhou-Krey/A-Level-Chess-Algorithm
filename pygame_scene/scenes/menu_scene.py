@@ -129,8 +129,6 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
         self.__display_user_information = True
         return self
     
-    #marker
-    
     def game_end_signal(self, game_scene : GameScene, winner:Enum=None) -> object:
         """ Decoupled from the exit game scene function for further development as this is distinct in that this call only occurs when
         a checkmate or stalemate is achieved and not when exit game button is pressed """
@@ -177,7 +175,7 @@ class MenuScene(Scene, TextBoxObserver, GameObserver):
                             if isinstance(overlay, GameScene):
                                 if type(overlay) is OnlinePlayerVsPlayer:
                                     online_game_scene : OnlinePlayerVsPlayer = overlay
-                                    player_elo = literal_eval(online_game_scene.network_component.send("Elo?")) #marker
+                                    player_elo = literal_eval(online_game_scene.network_component.send("Elo?"))
                                     self.database_component.update_elo(player_elo, loser=online_game_scene.player_colour)
                                     online_game_scene.network_component.send("Quit!")
                                 self.exit_game_scene(overlay)
