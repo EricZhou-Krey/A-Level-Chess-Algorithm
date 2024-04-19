@@ -418,12 +418,6 @@ class Engine:
                     w_evaluation, d_evaluation = self.__total_advantage
                     sum_eval = float(w_evaluation - d_evaluation)
                     move_evaluation[applied_move] = sum_eval
-                    move_list = []
-                    for move_capture in self.bitboard.applied_moves:
-                        if type(move_capture) == tuple and len(move_capture) == 3:
-                            move_list.append(move_capture)
-                        else:
-                            move_list.append(move_capture[0])
                             
                     self.bitboard.revert_move()
                     
