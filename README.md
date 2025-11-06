@@ -45,3 +45,7 @@ This application includes both core gameplay functionality and several features 
 * **Data Persistence (SQL)**: Stores user data, game records, and engine information in a **MySQL database**.
 * **Offline Support**: Users can automatically load an **anonymous account** and save games locally if no connection is secured.
 * **
+### ⬇️ Downloadable Project Write-up
+
+For the best experience, download the original document file:
+[Download Full Project PDF]((Paste the direct download URL here))
