@@ -48,4 +48,4 @@ This application includes both core gameplay functionality and several features 
 ### ⬇️ Downloadable Project Write-up
 
 For the best experience, download the original document file:
-[Download Full Project PDF](./non_program/FINISHED%20NEA%20Eric%20Zhou.pdf)
+[Download Full Project PDF](https://raw.githubusercontent.com/EricZhou-Krey/A-Level-Chess-Algorithm/blob/main/non_program/FINISHED%20NEA%20Eric%20Zhou.pdf?raw=true)
