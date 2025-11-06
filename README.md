@@ -9,16 +9,6 @@ An A-Level Computer Science project that implements a functional chess applicati
 * [🌟 Features](#-features)
     * [Core Features](#core-features)
     * [User Experience & Persistence Features](#user-experience--persistence-features)
-* [🛠️ Technologies & Algorithms](#%EF%B8%8F-technologies--algorithms)
-    * [Primary Technologies](#primary-technologies)
-    * [Key Algorithms & Structures](#key-algorithms--structures)
-* [🏃 Getting Started](#-getting-started)
-    * [Prerequisites](#prerequisites)
-    * [Installation](#installation)
-    * [Running the Application](#running-the-application)
-* [💡 Further Development](#-further-development)
-* [👨‍💻 Project Overview](#-project-overview)
-
 ---
 
 ## 🌟 Features
