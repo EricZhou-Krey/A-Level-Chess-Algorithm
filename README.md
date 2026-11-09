@@ -4,7 +4,7 @@ A-Level Computer Science project that implements a functional chess application 
 
 ---
 
-## 🧭 Table of Contents
+## Table of Contents
 ### Core Features
 
 * **Chess Engine (The Bot)**: An AI built using a **Minimax algorithm** enhanced with **Alpha-Beta Pruning** and **Quiescence Searching** for move evaluation.
