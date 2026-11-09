@@ -1,6 +1,6 @@
-# 🤖 Chess Bot and Application
+# Chess Bot and Application
 
-An A-Level Computer Science project that implements a functional chess application with an integrated AI engine, a graphical user interface, and user management features. The application is designed to help members of the **Wirral Grammar School for Boys** chess club learn, practice, and improve their gameplay.
+A-Level Computer Science project that implements a functional chess application with an integrated AI engine, a graphical user interface, and user management features. The application is designed to help members of the **Wirral Grammar School for Boys** chess club learn, practice, and improve their gameplay.
 
 ---
 
@@ -25,7 +25,7 @@ An A-Level Computer Science project that implements a functional chess applicati
 * **Data Persistence (SQL)**: Stores user data, game records, and engine information in a **MySQL database**.
 * **Offline Support**: Users can automatically load an **anonymous account** and save games locally if no connection is secured.
 * **
-### ⬇️ Downloadable Project Write-up
+### Downloadable Project Write-up
 
 For the best experience, download the original document file:
 [Download Full Project PDF](/non_program/FINISHED%20NEA%20Eric%20Zhou.pdf)
